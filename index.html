@@ -1,0 +1,2828 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%A6%B7</text></svg>">
+  <title>Odontograma 3D — Fassiara Clínica Odontológica y Estética</title>
+  <style>
+    :root {
+      --bg-app: #e7dbd6;
+      --bg-panel: rgba(255, 255, 255, 0.96);
+      --bg-card: #f8fafc;
+      --bg-input: #ffffff;
+      --border-color: #94a3b8;
+      --border-subtle: #e2e8f0;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --primary: #be123c;
+      --primary-hover: #9f1239;
+      --active-tab-bg: #ffe4e6;
+      --active-tab-text: #be123c;
+      --shadow-elevation: 0 8px 24px rgba(15, 23, 42, 0.12);
+    }
+
+    body.dark-mode {
+      --bg-app: #150d10;
+      --bg-panel: rgba(15, 23, 42, 0.95);
+      --bg-card: #1e293b;
+      --bg-input: #0f172a;
+      --border-color: #334155;
+      --border-subtle: #1e293b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #fb7185;
+      --primary-hover: #f43f5e;
+      --active-tab-bg: #3f1220;
+      --active-tab-text: #fb7185;
+      --shadow-elevation: 0 10px 25px rgba(0, 0, 0, 0.6);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
+    body { width: 100vw; height: 100vh; overflow: hidden; background: var(--bg-app); font-family: system-ui, -apple-system, sans-serif; color: var(--text-main); touch-action: none; }
+    #canvas { width: 100%; height: 100%; display: block; }
+
+    /* Barra Superior Tablet */
+    #top-bar {
+      position: absolute;
+      top: 12px;
+      left: 16px;
+      right: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      padding: 8px 14px;
+      border-radius: 14px;
+      backdrop-filter: blur(12px);
+      box-shadow: var(--shadow-elevation);
+      z-index: 100;
+    }
+    .top-group { display: flex; align-items: center; gap: 8px; }
+    #clinic-brand-label {
+      font-family: Georgia, 'Times New Roman', serif;
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: 2px;
+      color: var(--primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+      flex-shrink: 1;
+      padding: 0 10px;
+      pointer-events: none;
+    }
+    @media (max-width: 820px) {
+      #clinic-brand-label { display: none; }
+    }
+    
+    .touch-btn {
+      min-height: 40px;
+      padding: 0 14px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .touch-btn:active { transform: scale(0.97); }
+    .touch-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; box-shadow: 0 0 10px rgba(2, 132, 199, 0.35); }
+    .btn-alert { background: #ea580c; border-color: #f97316; color: #fff; }
+    .btn-budget-pill { background: #2b0f18; border-color: #d4a054; color: #f0c987; font-size: 13px; }
+    body.dark-mode .btn-budget-pill { background: #1f0a10; }
+    .btn-pdf { background: #be123c; border-color: #e11d48; color: #fff; }
+
+    /* Barra de Filtros de Capas 3D */
+    #layer-floating-bar {
+      position: absolute;
+      top: 70px;
+      left: 16px;
+      display: flex;
+      gap: 6px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      padding: 6px 10px;
+      border-radius: 12px;
+      backdrop-filter: blur(10px);
+      box-shadow: var(--shadow-elevation);
+      z-index: 99;
+      max-width: calc(100vw - 120px);
+      overflow-x: auto;
+    }
+    .layer-chip {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      font-size: 10.5px;
+      font-weight: 800;
+      padding: 5px 9px;
+      border-radius: 8px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .layer-chip.active { background: #0f766e; border-color: #14b8a6; color: #fff; }
+
+    /* Riel Lateral Derecho de Especialidades */
+    #specialty-rail {
+      position: absolute;
+      top: 70px;
+      right: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      padding: 8px 6px;
+      border-radius: 14px;
+      backdrop-filter: blur(12px);
+      box-shadow: var(--shadow-elevation);
+      z-index: 100;
+      max-height: calc(100vh - 90px);
+      overflow-y: auto;
+    }
+    .rail-btn {
+      min-width: 46px;
+      min-height: 46px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      cursor: pointer;
+      position: relative;
+      transition: 0.15s;
+    }
+    .rail-btn span { font-size: 8px; font-weight: 800; color: var(--text-muted); margin-top: 2px; }
+    .rail-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .rail-btn.active span { color: #fff; }
+
+    /* Cajón Inferior Táctil (Bottom Sheet) */
+    #bottom-sheet {
+      position: absolute;
+      bottom: 16px;
+      left: 16px;
+      width: 470px;
+      max-height: calc(100vh - 140px);
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 18px;
+      padding: 16px;
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.2);
+      backdrop-filter: blur(14px);
+      z-index: 100;
+      overflow-y: auto;
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    #bottom-sheet.minimized {
+      transform: translateY(calc(100% - 48px));
+    }
+    .sheet-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      cursor: pointer;
+    }
+    .sheet-title { font-size: 14.5px; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
+    .sheet-title strong { color: var(--primary); font-size: 19px; }
+
+    /* Semáforo Táctil */
+    .traffic-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      margin-bottom: 10px;
+      background: var(--bg-card);
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid var(--border-subtle);
+    }
+    .traffic-btn {
+      min-height: 36px;
+      border: none;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+      color: var(--text-muted);
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      transition: 0.15s;
+    }
+    .traffic-btn.active-diagnosticado { background: #dc2626; color: #fff; border-color: #b91c1c; }
+    .traffic-btn.active-existente { background: #2563eb; color: #fff; border-color: #1d4ed8; }
+    .traffic-btn.active-realizado { background: #16a34a; color: #fff; border-color: #15803d; }
+
+    /* Cruz Dental Táctil Limpia */
+    .cross-container {
+      display: grid;
+      grid-template-columns: repeat(3, 44px);
+      grid-template-rows: repeat(3, 44px);
+      gap: 5px;
+      justify-content: center;
+      margin: 6px 0 12px;
+    }
+    .cross-cell {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-color);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      color: var(--text-muted);
+    }
+    .cross-cell.state-diagnosticado { background: #dc2626; color: #fff; border-color: #b91c1c; }
+    .cross-cell.state-existente { background: #2563eb; color: #fff; border-color: #1d4ed8; }
+    .cross-cell.state-realizado { background: #16a34a; color: #fff; border-color: #15803d; }
+
+    /* Grillas Táctiles */
+    .grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px; }
+    .grid-3col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 6px; }
+    .grid-4col { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 6px; }
+
+    .action-touch-btn {
+      min-height: 40px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 6px 8px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 4px;
+    }
+    .action-touch-btn:active { transform: scale(0.97); }
+    .action-touch-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+    /* Tarjetas de Periodoncia */
+    .perio-site-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 6px 4px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .bop-toggle-btn {
+      min-height: 28px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .bop-toggle-btn.active-bop {
+      background: #dc2626 !important;
+      border-color: #ef4444 !important;
+      color: #fff !important;
+      box-shadow: 0 0 8px rgba(220, 38, 38, 0.4);
+    }
+
+    .section-lbl { font-size: 10.5px; font-weight: 800; color: var(--primary); text-transform: uppercase; margin: 8px 0 4px; }
+
+    /* Modales */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(8px);
+      z-index: 300;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 18px;
+      padding: 22px;
+      width: 480px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    }
+    .modal-input {
+      width: 100%;
+      min-height: 40px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: var(--text-main);
+      padding: 8px 12px;
+      font-size: 12.5px;
+      margin-bottom: 10px;
+    }
+    #signature-pad {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      cursor: crosshair;
+      touch-action: none;
+      display: block;
+      margin-bottom: 10px;
+    }
+    .modal-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+
+    #alert-pill-box {
+      position: absolute;
+      top: 110px;
+      left: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      z-index: 99;
+      pointer-events: none;
+      max-width: 400px;
+    }
+    .alert-pill {
+      background: #dc2626;
+      color: #fff;
+      font-size: 9.5px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 20px;
+      box-shadow: 0 3px 10px rgba(220, 38, 38, 0.35);
+    }
+
+    #status {
+      position: absolute;
+      bottom: 16px;
+      right: 75px;
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: monospace;
+      z-index: 90;
+      background: var(--bg-panel);
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border-subtle);
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+
+  <div id="alert-pill-box"></div>
+
+  <!-- Barra Superior Tablet -->
+  <div id="top-bar">
+    <div class="top-group">
+      <button class="touch-btn active" id="btn-mode-adult" onclick="setDentitionMode('adult')">Permanente</button>
+      <button class="touch-btn" id="btn-mode-temp" onclick="setDentitionMode('temporal')">Niños</button>
+      <div style="width: 1px; height: 22px; background: var(--border-color); margin: 0 4px;"></div>
+      <button class="touch-btn active" id="btn-arch-inf" onclick="setArch('inferior')">Inferior</button>
+      <button class="touch-btn" id="btn-arch-sup" onclick="setArch('superior')">Superior</button>
+    </div>
+
+    <div id="clinic-brand-label">FASSIARA</div>
+
+    <div class="top-group">
+      <button class="touch-btn btn-alert" onclick="openAnamnesisModal()">⚠️ Alertas</button>
+      <button class="touch-btn btn-budget-pill" id="btn-top-budget" onclick="openBudgetModal()">💰 S/ 0</button>
+      <button class="touch-btn" id="btn-theme-toggle" onclick="toggleAppTheme()">☀️</button>
+      <button class="touch-btn btn-pdf" onclick="openConsentModal('pdf')">📄 PDF</button>
+    </div>
+  </div>
+
+  <!-- Barra de Filtros de Capas 3D -->
+  <div id="layer-floating-bar">
+    <button class="layer-chip active" id="layer-general" onclick="toggleLayer('general')">Restauradora</button>
+    <button class="layer-chip active" id="layer-surgery" onclick="toggleLayer('surgery')">Cirugía</button>
+    <button class="layer-chip active" id="layer-perio" onclick="toggleLayer('perio')">Perio/BOP</button>
+    <button class="layer-chip active" id="layer-bridges" onclick="toggleLayer('bridges')">Prót. Fija</button>
+    <button class="layer-chip active" id="layer-removible" onclick="toggleLayer('removible')">PPR</button>
+    <button class="layer-chip active" id="layer-occlusion" onclick="toggleLayer('occlusion')">Oclusión</button>
+    <button class="layer-chip active" id="layer-trauma" onclick="toggleLayer('trauma')">Trauma</button>
+    <button class="layer-chip active" id="layer-malposition" onclick="toggleLayer('malposition')">Eje/Diastema</button>
+    <button class="layer-chip active" id="layer-estetica" onclick="toggleLayer('estetica')">VITA</button>
+    <button class="layer-chip active" id="layer-pediatric" onclick="toggleLayer('pediatric')">Odontopediatría</button>
+    <button class="layer-chip active" id="layer-ortho" onclick="toggleLayer('ortho')">Ortodoncia</button>
+  </div>
+
+  <!-- Riel Lateral Derecho de Especialidades -->
+  <div id="specialty-rail">
+    <button class="rail-btn active" id="rail-odonto" onclick="switchSpecialty('odonto')">🦷<span>General</span></button>
+    <button class="rail-btn" id="rail-cirugia" onclick="switchSpecialty('cirugia')">🔪<span>Cirugía</span></button>
+    <button class="rail-btn" id="rail-endo" onclick="switchSpecialty('endo')">🦷<span>Endo.</span></button>
+    <button class="rail-btn" id="rail-perio" onclick="switchSpecialty('perio')">📏<span>Perio</span></button>
+    <button class="rail-btn" id="rail-protesis" onclick="switchSpecialty('protesis')">🌉<span>Fija</span></button>
+    <button class="rail-btn" id="rail-removible" onclick="switchSpecialty('removible')">🌸<span>PPR</span></button>
+    <button class="rail-btn" id="rail-occlusion" onclick="switchSpecialty('occlusion')">🛡️<span>Oclusión</span></button>
+    <button class="rail-btn" id="rail-trauma" onclick="switchSpecialty('trauma')">⚡<span>Trauma</span></button>
+    <button class="rail-btn" id="rail-malposition" onclick="switchSpecialty('malposition')">↔️<span>Eje</span></button>
+    <button class="rail-btn" id="rail-estetica" onclick="switchSpecialty('estetica')">🎨<span>Color</span></button>
+    <button class="rail-btn" id="rail-pediatria" onclick="switchSpecialty('pediatria')">👶<span>Pediat.</span></button>
+    <button class="rail-btn" id="rail-ortho" onclick="switchSpecialty('ortho')">📦<span>Orto</span></button>
+  </div>
+
+  <!-- Cajón Inferior Táctil (Bottom Sheet) -->
+  <div id="bottom-sheet" class="minimized">
+    <div class="sheet-header" onclick="toggleBottomSheet()">
+      <div class="sheet-title">Pieza: <strong id="lbl-piece">Ninguna</strong> <span id="lbl-specialty-name" style="font-size:11px; color:var(--text-muted); font-weight:700;">(Odontología General)</span></div>
+      <div style="font-size: 13px; color: var(--text-muted); font-weight: 800;">▲ / ▼</div>
+    </div>
+
+    <!-- Semáforo de Estado Clínico -->
+    <div class="traffic-row">
+      <button class="traffic-btn active-diagnosticado" id="traffic-diagnosticado" onclick="setClinicalState('diagnosticado')">🔴 Requerido</button>
+      <button class="traffic-btn" id="traffic-existente" onclick="setClinicalState('existente')">🔵 Previo</button>
+      <button class="traffic-btn" id="traffic-realizado" onclick="setClinicalState('realizado')">🟢 Realizado</button>
+    </div>
+
+    <!-- 1. Odontología General (Sistema Limpio por Caras) -->
+    <div id="panel-odonto">
+      <div class="section-lbl">⚡ Macros — Secuencias Comunes</div>
+      <button class="action-touch-btn" id="btn-macro-endo-corona" style="width:100%; margin-bottom:6px;" onclick="applyMacro('endo_perno_corona')">🦷⚡👑 Conducto + Perno + Corona</button>
+      <button class="action-touch-btn" id="btn-macro-exo-implante" style="width:100%; margin-bottom:6px;" onclick="applyMacro('exodoncia_implante')">🦷➡️🔩 Exodoncia + Implante Planificado</button>
+      <button class="action-touch-btn" id="btn-macro-corona-zirconia" style="width:100%; margin-bottom:10px;" onclick="applyMacro('corona_zirconia')">👑🧱 Corona + Zirconia</button>
+
+      <div class="cross-container">
+        <div></div>
+        <div class="cross-cell" id="face-v" onclick="toggleFace('V')">V</div>
+        <div></div>
+        <div class="cross-cell" id="face-m" onclick="toggleFace('M')">M</div>
+        <div class="cross-cell" id="face-o" onclick="toggleFace('O')">O/I</div>
+        <div class="cross-cell" id="face-d" onclick="toggleFace('D')">D</div>
+        <div></div>
+        <div class="cross-cell" id="face-l" onclick="toggleFace('L')">L</div>
+        <div></div>
+      </div>
+      <div class="grid-2col">
+        <button class="action-touch-btn" id="btn-corona" onclick="setGeneralCondition('corona')">👑 Corona</button>
+        <button class="action-touch-btn" id="btn-endodoncia" onclick="setGeneralCondition('endodoncia')">⚡ Conducto</button>
+        <button class="action-touch-btn" id="btn-implante" onclick="setGeneralCondition('implante')">🔩 Implante</button>
+        <button class="action-touch-btn" id="btn-ausente" onclick="setGeneralCondition('ausente')">❌ Ausente</button>
+        <button class="action-touch-btn" id="btn-sellante" onclick="setGeneralCondition('sellante')">🛡️ Sellante</button>
+      </div>
+      <button class="action-touch-btn" id="btn-clear-piece" onclick="clearGeneralRecord()" style="width:100%; margin-top:8px; background:rgba(239,68,68,0.12); border-color:#ef4444; color:#ef4444;">🗑️ Borrar Pieza</button>
+    </div>
+
+    <!-- 2. Cirugía Oral -->
+    <div id="panel-cirugia" style="display: none;">
+      <div class="section-lbl">Cirugía y Exodoncias</div>
+      <div class="grid-2col">
+        <button class="action-touch-btn" id="btn-surg-exodoncia" onclick="setSurgCondition('exodoncia')">🦷 Exodoncia</button>
+        <button class="action-touch-btn" id="btn-surg-resto" onclick="setSurgCondition('resto')">🪵 Resto Radicular</button>
+        <button class="action-touch-btn" id="btn-surg-impactado" onclick="setSurgCondition('impactado')">⚠️ Impactada</button>
+        <button class="action-touch-btn" id="btn-surg-lesion" onclick="setSurgCondition('lesion')">🔴 Quiste/Ápice</button>
+      </div>
+      <button class="action-touch-btn" id="btn-surg-perno" style="width:100%;" onclick="setSurgCondition('perno')">📍 Perno / Muñón Colado</button>
+
+      <div class="section-lbl" style="margin-top:14px;">Cirugía Maxilofacial / Implantología Avanzada</div>
+      <div class="grid-2col">
+        <button class="action-touch-btn" id="btn-surg-bloque" onclick="setSurgCondition('bloque')">🦴 Injerto en Bloque</button>
+        <button class="action-touch-btn" id="btn-surg-seno" onclick="setSurgCondition('seno')">🎈 Elevación de Seno</button>
+      </div>
+      <button class="action-touch-btn" id="btn-surg-rog" style="width:100%;" onclick="setSurgCondition('rog')">🔧 ROG (Regeneración Ósea Guiada)</button>
+      <button class="action-touch-btn" id="btn-clear-surgery" onclick="clearSurgeryRecord()" style="width:100%; margin-top:8px; background:rgba(239,68,68,0.12); border-color:#ef4444; color:#ef4444;">🗑️ Borrar Cirugía</button>
+    </div>
+
+    <div id="panel-endo" style="display: none;">
+      <div class="section-lbl" id="endo-molar-sup-lbl">Conductos — Molar Superior</div>
+      <div class="grid-3col" id="endo-molar-sup">
+        <button class="action-touch-btn" id="btn-canal-mv" onclick="toggleCanal('mv')">MV</button>
+        <button class="action-touch-btn" id="btn-canal-dv" onclick="toggleCanal('dv')">DV</button>
+        <button class="action-touch-btn" id="btn-canal-p" onclick="toggleCanal('p')">P</button>
+      </div>
+      <div class="section-lbl" id="endo-molar-inf-lbl">Conductos — Molar Inferior</div>
+      <div class="grid-2col" id="endo-molar-inf">
+        <button class="action-touch-btn" id="btn-canal-mesial" onclick="toggleCanal('mesial')">Mesial</button>
+        <button class="action-touch-btn" id="btn-canal-distal" onclick="toggleCanal('distal')">Distal</button>
+      </div>
+      <div class="section-lbl" id="endo-unico-lbl">Conducto Único</div>
+      <button class="action-touch-btn" id="btn-canal-unico" style="width:100%;" onclick="toggleCanal('unico')">🦷 Conducto Único</button>
+
+      <div class="section-lbl" style="margin-top:14px;">Obturación Apical</div>
+      <button class="action-touch-btn" id="btn-endo-obturacion" style="width:100%;" onclick="cycleObturacion()">📏 Estado: <b id="lbl-endo-obturacion">Sin Preparar</b></button>
+      <button class="action-touch-btn" id="btn-clear-endo" onclick="clearEndoRecord()" style="width:100%; margin-top:8px; background:rgba(239,68,68,0.12); border-color:#ef4444; color:#ef4444;">🗑️ Borrar Endodoncia</button>
+    </div>
+
+    <!-- 3. Periodoncia Completa (6 Sitios) -->
+    <div id="panel-perio" style="display: none;">
+      <div class="section-lbl">Vestibular (PS / REC / BOP)</div>
+      <div class="grid-3col">
+        <div class="perio-site-card">
+          <span style="font-size:10px; font-weight:800; color:var(--text-muted);">MV</span>
+          <button class="action-touch-btn" style="min-height:30px; font-size:10.5px;" onclick="cycleDepth('mv')">PS: <b id="lbl-perio-mv">2mm</b></button>
+          <button class="action-touch-btn" style="min-height:26px; font-size:9.5px; background:var(--bg-input);" onclick="cycleRecession('mv')">REC: <b id="lbl-rec-mv">0mm</b></button>
+          <button class="bop-toggle-btn" id="btn-bop-mv" onclick="toggleSiteBOP('mv')">🩸 Sangrado</button>
+        </div>
+        <div class="perio-site-card">
+          <span style="font-size:10px; font-weight:800; color:var(--text-muted);">V</span>
+          <button class="action-touch-btn" style="min-height:30px; font-size:10.5px;" onclick="cycleDepth('v')">PS: <b id="lbl-perio-v">2mm</b></button>
+          <button class="action-touch-btn" style="min-height:26px; font-size:9.5px; background:var(--bg-input);" onclick="cycleRecession('v')">REC: <b id="lbl-rec-v">0mm</b></button>
+          <button class="bop-toggle-btn" id="btn-bop-v" onclick="toggleSiteBOP('v')">🩸 Sangrado</button>
+        </div>
+        <div class="perio-site-card">
+          <span style="font-size:10px; font-weight:800; color:var(--text-muted);">DV</span>
+          <button class="action-touch-btn" style="min-height:30px; font-size:10.5px;" onclick="cycleDepth('dv')">PS: <b id="lbl-perio-dv">2mm</b></button>
+          <button class="action-touch-btn" style="min-height:26px; font-size:9.5px; background:var(--bg-input);" onclick="cycleRecession('dv')">REC: <b id="lbl-rec-dv">0mm</b></button>
+          <button class="bop-toggle-btn" id="btn-bop-dv" onclick="toggleSiteBOP('dv')">🩸 Sangrado</button>
+        </div>
+      </div>
+
+      <div class="section-lbl" id="lbl-perio-pal-sec">Lingual / Palatino (PS / REC / BOP)</div>
+      <div class="grid-3col">
+        <div class="perio-site-card">
+          <span style="font-size:10px; font-weight:800; color:var(--text-muted);">ML</span>
+          <button class="action-touch-btn" style="min-height:30px; font-size:10.5px;" onclick="cycleDepth('ml')">PS: <b id="lbl-perio-ml">2mm</b></button>
+          <button class="action-touch-btn" style="min-height:26px; font-size:9.5px; background:var(--bg-input);" onclick="cycleRecession('ml')">REC: <b id="lbl-rec-ml">0mm</b></button>
+          <button class="bop-toggle-btn" id="btn-bop-ml" onclick="toggleSiteBOP('ml')">🩸 Sangrado</button>
+        </div>
+        <div class="perio-site-card">
+          <span style="font-size:10px; font-weight:800; color:var(--text-muted);">L/P</span>
+          <button class="action-touch-btn" style="min-height:30px; font-size:10.5px;" onclick="cycleDepth('l')">PS: <b id="lbl-perio-l">2mm</b></button>
+          <button class="action-touch-btn" style="min-height:26px; font-size:9.5px; background:var(--bg-input);" onclick="cycleRecession('l')">REC: <b id="lbl-rec-l">0mm</b></button>
+          <button class="bop-toggle-btn" id="btn-bop-l" onclick="toggleSiteBOP('l')">🩸 Sangrado</button>
+        </div>
+        <div class="perio-site-card">
+          <span style="font-size:10px; font-weight:800; color:var(--text-muted);">DL</span>
+          <button class="action-touch-btn" style="min-height:30px; font-size:10.5px;" onclick="cycleDepth('dl')">PS: <b id="lbl-perio-dl">2mm</b></button>
+          <button class="action-touch-btn" style="min-height:26px; font-size:9.5px; background:var(--bg-input);" onclick="cycleRecession('dl')">REC: <b id="lbl-rec-dl">0mm</b></button>
+          <button class="bop-toggle-btn" id="btn-bop-dl" onclick="toggleSiteBOP('dl')">🩸 Sangrado</button>
+        </div>
+      </div>
+
+      <div class="section-lbl">Movilidad y Furca</div>
+      <div class="grid-2col">
+        <button class="action-touch-btn" id="btn-mov-toggle" onclick="cycleMovilidad()">Movilidad: <b id="lbl-mov-val">G0</b></button>
+        <button class="action-touch-btn" id="btn-furca-toggle" onclick="cycleFurca()">Furca: <b id="lbl-furca-val">F0</b></button>
+      </div>
+      <button class="action-touch-btn" id="btn-clear-perio" onclick="clearPerioRecord()" style="width:100%; margin-top:8px; background:rgba(239,68,68,0.12); border-color:#ef4444; color:#ef4444;">🗑️ Borrar Periodoncia</button>
+
+      <div class="section-lbl" style="margin-top:14px;">Periodoncia Compleja (Cirugía)</div>
+      <div class="grid-2col">
+        <button class="action-touch-btn" id="btn-surg-gingivectomia" onclick="setSurgCondition('gingivectomia')">✂️ Gingivectomía</button>
+        <button class="action-touch-btn" id="btn-surg-colgajo" onclick="setSurgCondition('colgajo')">🔬 Cirugía de Colgajo</button>
+        <button class="action-touch-btn" id="btn-surg-rtg_perio" onclick="setSurgCondition('rtg_perio')">🧬 Regeneración Tisular</button>
+        <button class="action-touch-btn" id="btn-surg-alargamiento" onclick="setSurgCondition('alargamiento')">📏 Alargamiento Coronario</button>
+      </div>
+    </div>
+
+    <!-- 4. Prótesis Fija -->
+    <div id="panel-protesis" style="display: none;">
+      <div class="section-lbl">Incrustaciones Cerámicas</div>
+      <div class="grid-2col">
+        <button class="action-touch-btn" id="btn-inlay" onclick="setRestorationCondition('inlay')">💎 Inlay</button>
+        <button class="action-touch-btn" id="btn-onlay" onclick="setRestorationCondition('onlay')">💎 Onlay</button>
+        <button class="action-touch-btn" id="btn-overlay" onclick="setRestorationCondition('overlay')">💎 Overlay</button>
+        <button class="action-touch-btn" id="btn-carilla" onclick="setRestorationCondition('carilla')">✨ Carilla</button>
+      </div>
+      <button class="action-touch-btn" id="btn-clear-restoration" onclick="clearRestorationRecord()" style="width:100%; margin-top:8px; background:rgba(239,68,68,0.12); border-color:#ef4444; color:#ef4444;">🗑️ Borrar Incrustación</button>
+      <button class="action-touch-btn" id="btn-material-fija" onclick="cycleMaterial()" style="width:100%; margin-top:8px;">🧱 Material: <b id="lbl-material-fija">Sin especificar</b></button>
+      <div class="section-lbl">Puente Dental 3D</div>
+      <button class="action-touch-btn" id="btn-bridge-action" style="width:100%; background:#d97706; color:#fff;" onclick="handleBridgeButton()">🌉 Trazar Puente desde Pieza</button>
+      <button class="action-touch-btn" id="btn-lab-order" style="width:100%; margin-top:8px; background:#7c3aed; border-color:#8b5cf6; color:#fff;" onclick="openLabOrderModal()">🧾 Generar Orden de Laboratorio</button>
+    </div>
+
+    <!-- 5. Prótesis Removible -->
+    <div id="panel-removible" style="display: none;">
+      <div class="section-lbl">Rehabilitación Removible de Arcada</div>
+      <div class="grid-2col">
+        <button class="action-touch-btn" id="btn-rem-total" onclick="setArchRemovableType('total')">🦷 Total</button>
+        <button class="action-touch-btn" id="btn-rem-esquelt" onclick="setArchRemovableType('esqueletica')">🔩 Esquelética</button>
+        <button class="action-touch-btn" id="btn-rem-flex" onclick="setArchRemovableType('flexible')">🌸 Valplast</button>
+        <button class="action-touch-btn" id="btn-rem-ninguna" onclick="setArchRemovableType(null)">❌ Retirar</button>
+      </div>
+      <button class="action-touch-btn" id="btn-rem-gancho" style="width:100%;" onclick="toggleRemovableRetainer()">🧲 Gancho Cromo-Cobalto</button>
+      <button class="action-touch-btn" id="btn-material-removible" onclick="cycleMaterialRemovible()" style="width:100%; margin-top:8px;">🧱 Material: <b id="lbl-material-removible">Sin especificar</b></button>
+      <button class="action-touch-btn" id="btn-kennedy" onclick="cycleKennedy()" style="width:100%;">📋 Clasificación de Kennedy: <b id="lbl-kennedy">Sin clasificar</b></button>
+      <button class="action-touch-btn" id="btn-lab-order-removible" style="width:100%; margin-top:8px; background:#7c3aed; border-color:#8b5cf6; color:#fff;" onclick="openLabOrderModal()">🧾 Generar Orden de Laboratorio</button>
+    </div>
+
+    <!-- 6. Oclusión y ATM -->
+    <div id="panel-occlusion" style="display: none;">
+      <div class="section-lbl">Facetas de Desgaste (Bruxismo)</div>
+      <div class="grid-3col">
+        <button class="action-touch-btn" id="btn-occ-f1" onclick="setFacetCondition(1)">Leve (I)</button>
+        <button class="action-touch-btn" id="btn-occ-f2" onclick="setFacetCondition(2)">Mod (II)</button>
+        <button class="action-touch-btn" id="btn-occ-f3" onclick="setFacetCondition(3)">Sev (III)</button>
+      </div>
+      <button class="action-touch-btn" id="btn-clear-facet" onclick="clearFacetRecord()" style="width:100%; margin-top:8px; background:rgba(239,68,68,0.12); border-color:#ef4444; color:#ef4444;">🗑️ Borrar Faceta</button>
+      <button class="action-touch-btn" id="btn-splint-arch" style="width:100%;" onclick="toggleSplintArch()">🛡️ Férula Miorrelajante</button>
+
+      <div class="section-lbl" style="margin-top:14px;">ATM — Evaluación Rápida</div>
+      <div class="grid-2col">
+        <button class="action-touch-btn" id="btn-atm-click-izq" onclick="toggleATM('click_izq')">🔊 Chasquido Izq.</button>
+        <button class="action-touch-btn" id="btn-atm-click-der" onclick="toggleATM('click_der')">🔊 Chasquido Der.</button>
+        <button class="action-touch-btn" id="btn-atm-dolor-izq" onclick="toggleATM('dolor_izq')">😣 Dolor Palpación Izq.</button>
+        <button class="action-touch-btn" id="btn-atm-dolor-der" onclick="toggleATM('dolor_der')">😣 Dolor Palpación Der.</button>
+      </div>
+      <button class="action-touch-btn" id="btn-atm-desviacion" style="width:100%;" onclick="cycleATMDeviation()">↕️ Desviación Apertura: <b id="lbl-atm-desviacion">Ninguna</b></button>
+    </div>
+
+    <!-- 7. Traumatología -->
+    <div id="panel-trauma" style="display: none;">
+      <div class="section-lbl">Fracturas Dentales (IADT)</div>
+      <div class="grid-2col">
+        <button class="action-touch-btn" id="btn-trauma-incompleta" onclick="setTraumaCondition('incompleta')">⚡ Coronaria</button>
+        <button class="action-touch-btn" id="btn-trauma-pulpar" onclick="setTraumaCondition('pulpar')">🔴 Con Pulpa</button>
+        <button class="action-touch-btn" id="btn-trauma-radicular" onclick="setTraumaCondition('radicular')">📍 Radicular</button>
+        <button class="action-touch-btn" id="btn-trauma-none" onclick="setTraumaCondition(null)">❌ Normal</button>
+      </div>
+    </div>
+
+    <!-- 8. Malposiciones -->
+    <div id="panel-malposition" style="display: none;">
+      <div class="section-lbl">Anomalías de Posición y Eje</div>
+      <div class="grid-2col">
+        <button class="action-touch-btn" id="btn-mal-diastema" onclick="setMalpositionCondition('diastema')">↔️ Diastema</button>
+        <button class="action-touch-btn" id="btn-mal-giro" onclick="setMalpositionCondition('giro')">🔄 Rotación</button>
+        <button class="action-touch-btn" id="btn-mal-extrusion" onclick="setMalpositionCondition('extrusion')">⬆️ Extrusión</button>
+        <button class="action-touch-btn" id="btn-mal-intrusion" onclick="setMalpositionCondition('intrusion')">⬇️ Intrusión</button>
+      </div>
+      <button class="action-touch-btn" id="btn-mal-inclinacion" style="width:100%;" onclick="setMalpositionCondition('inclinacion')">📐 Inclinación de Eje</button>
+      <button class="action-touch-btn" id="btn-clear-malposition" onclick="clearMalpositionRecord()" style="width:100%; margin-top:8px; background:rgba(239,68,68,0.12); border-color:#ef4444; color:#ef4444;">🗑️ Borrar Malposición</button>
+    </div>
+
+    <!-- 9. Color VITA -->
+    <div id="panel-estetica" style="display: none;">
+      <div class="section-lbl">Tono VITA Classical</div>
+      <div class="grid-4col">
+        <button class="action-touch-btn" id="vita-BL1" onclick="setVitaShade('BL1')">BL1</button>
+        <button class="action-touch-btn" id="vita-A1" onclick="setVitaShade('A1')">A1</button>
+        <button class="action-touch-btn" id="vita-A2" onclick="setVitaShade('A2')">A2</button>
+        <button class="action-touch-btn" id="vita-A3" onclick="setVitaShade('A3')">A3</button>
+        <button class="action-touch-btn" id="vita-B1" onclick="setVitaShade('B1')">B1</button>
+        <button class="action-touch-btn" id="vita-B2" onclick="setVitaShade('B2')">B2</button>
+        <button class="action-touch-btn" id="vita-C1" onclick="setVitaShade('C1')">C1</button>
+        <button class="action-touch-btn" id="vita-D2" onclick="setVitaShade('D2')">D2</button>
+      </div>
+      <button class="action-touch-btn" id="btn-clear-vita" onclick="clearVitaRecord()" style="width:100%; margin-top:8px; background:rgba(239,68,68,0.12); border-color:#ef4444; color:#ef4444;">🗑️ Borrar Tono</button>
+      <button class="action-touch-btn" id="btn-bleach-arch" style="width:100%;" onclick="toggleBleachingArch()">✨ Blanqueamiento Arcada</button>
+    </div>
+
+    <!-- 10. Odontopediatría -->
+    <div id="panel-pediatria" style="display: none;">
+      <div class="section-lbl">Prevención y Terapia Pulpar</div>
+      <div class="grid-2col">
+        <button class="action-touch-btn" id="btn-ped-sellante" onclick="setPediatricCondition('sellante')">🛡️ Sellante</button>
+        <button class="action-touch-btn" id="btn-ped-fluor" onclick="setPediatricCondition('fluor')">✨ Flúor Focal</button>
+        <button class="action-touch-btn" id="btn-ped-pulpotomia" onclick="setPediatricCondition('pulpotomia')">🟠 Pulpotomía</button>
+        <button class="action-touch-btn" id="btn-ped-pulpectomia" onclick="setPediatricCondition('pulpectomia')">🟣 Pulpectomía</button>
+      </div>
+      <div class="grid-2col">
+        <button class="action-touch-btn" id="btn-ped-mantenedor" onclick="setPediatricCondition('mantenedor')">📐 Mantenedor</button>
+        <button class="action-touch-btn" id="btn-fluor-arch-btn" onclick="applyFluorToArch()">✨ Flúor Arcada</button>
+      </div>
+      <button class="action-touch-btn" id="btn-clear-pediatric" onclick="clearPediatricRecord()" style="width:100%; margin-top:8px; background:rgba(239,68,68,0.12); border-color:#ef4444; color:#ef4444;">🗑️ Borrar Condición</button>
+    </div>
+
+    <!-- 11. Ortodoncia -->
+    <div id="panel-ortho" style="display: none;">
+      <div class="section-lbl">Aparatología Fija</div>
+      <div class="grid-2col">
+        <button class="action-touch-btn" id="btn-brk-metal" onclick="setOrthoPiece('metal')">🔩 Brk Metal</button>
+        <button class="action-touch-btn" id="btn-brk-zafiro" onclick="setOrthoPiece('zafiro')">💎 Brk Zafiro</button>
+        <button class="action-touch-btn" id="btn-brk-tubo" onclick="setOrthoPiece('tubo')">📦 Tubo Molar</button>
+        <button class="action-touch-btn" id="btn-brk-none" onclick="setOrthoPiece(null)">❌ Sin Brk</button>
+      </div>
+      <div class="section-lbl">Arco Ortodóntico Continuo 3D</div>
+      <div class="grid-3col">
+        <button class="action-touch-btn" id="wire-none" onclick="setWireType('none')">Sin Arco</button>
+        <button class="action-touch-btn" id="wire-niti" onclick="setWireType('niti')">Arco NiTi</button>
+        <button class="action-touch-btn" id="wire-estetico" onclick="setWireType('estetico')">Blanco Est.</button>
+      </div>
+      <button class="action-touch-btn" style="width:100%; margin-top:4px;" onclick="applyOrthoToFullArch('metal')">✨ Equipar Arcada Completa</button>
+
+      <div class="section-lbl" style="margin-top:14px;">Ortopedia Funcional (arcada actual)</div>
+      <button class="action-touch-btn" id="btn-aparato-funcional" onclick="cycleAparatoFuncional()" style="width:100%;">🦴 Aparato: <b id="lbl-aparato-funcional">Ninguno</b></button>
+
+      <div class="section-lbl" style="margin-top:14px;">Retención (arcada actual)</div>
+      <button class="action-touch-btn" id="btn-retenedor" onclick="cycleRetenedor()" style="width:100%;">🛡️ Retenedor: <b id="lbl-retenedor">Ninguno</b></button>
+    </div>
+  </div>
+
+  <!-- Modal Presupuesto & Plan -->
+  <div id="budget-modal" class="modal-overlay">
+    <div class="modal-card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h3 style="font-size:16px; font-weight:800; color:var(--text-main);">Plan de Tratamiento y Aranceles</h3>
+        <button onclick="closeBudgetModal()" style="background:none; border:none; font-size:18px; color:var(--text-muted); cursor:pointer;">✕</button>
+      </div>
+      <div style="background:var(--bg-card); padding:12px; border-radius:12px; border:1px solid var(--primary); text-align:center; margin-bottom:14px;">
+        <span style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Total Presupuestado</span>
+        <div id="modal-total-budget" style="font-size:26px; font-weight:800; color:var(--primary); margin-top:4px;">S/ 0</div>
+      </div>
+      <div id="modal-budget-list" style="max-height:220px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; margin-bottom:14px;"></div>
+      <div class="modal-btns">
+        <button class="touch-btn" style="background:#16a34a; border-color:#22c55e; color:#fff;" onclick="closeBudgetModal(); openConsentModal('ghl');">🚀 Sincronizar con GHL</button>
+        <button class="touch-btn btn-pdf" onclick="closeBudgetModal(); openConsentModal('pdf');">📄 Descargar Historia Clínica</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Alertas Médicas & Anamnesis -->
+  <div id="anamnesis-modal" class="modal-overlay">
+    <div class="modal-card">
+      <h3 style="font-size: 15px; color: #ea580c; margin-bottom: 10px;">⚠️ Alertas Médicas y Antecedentes</h3>
+      <div class="grid-2col">
+        <button class="action-touch-btn" id="alert-penicilina" onclick="toggleMedicalAlert('penicilina')">💊 Penicilina</button>
+        <button class="action-touch-btn" id="alert-latex" onclick="toggleMedicalAlert('latex')">🧤 Látex</button>
+        <button class="action-touch-btn" id="alert-anestesia" onclick="toggleMedicalAlert('anestesia')">💉 Vasoconstrictor</button>
+        <button class="action-touch-btn" id="alert-anticoagulado" onclick="toggleMedicalAlert('anticoagulado')">🩸 Anticoagulado</button>
+        <button class="action-touch-btn" id="alert-hipertension" onclick="toggleMedicalAlert('hipertension')">❤️ Hipertensión</button>
+        <button class="action-touch-btn" id="alert-diabetes" onclick="toggleMedicalAlert('diabetes')">🍬 Diabetes</button>
+        <button class="action-touch-btn" id="alert-embarazo" onclick="toggleMedicalAlert('embarazo')">🤰 Embarazo</button>
+        <button class="action-touch-btn" id="alert-asma" onclick="toggleMedicalAlert('asma')">🫁 Asma</button>
+      </div>
+      <input type="text" id="med-other-notes" class="modal-input" placeholder="Otras alergias / medicación..." style="margin-top:8px;">
+
+      <div class="section-lbl" style="margin-top:12px;">Registros Generales</div>
+      <button class="action-touch-btn" id="reg-profilaxis" onclick="toggleRegistroGeneral('profilaxis')" style="width:100%; margin-bottom:8px;">🪥 Profilaxis Realizada</button>
+      <label style="font-size: 10px; color: var(--text-muted); font-weight:700;">Radiografías Solicitadas:</label>
+      <div class="grid-3col">
+        <button class="action-touch-btn" id="reg-rx_periapical" onclick="toggleRegistroGeneral('rx_periapical')" style="font-size:10px;">Periapical</button>
+        <button class="action-touch-btn" id="reg-rx_bitewing" onclick="toggleRegistroGeneral('rx_bitewing')" style="font-size:10px;">Bitewing</button>
+        <button class="action-touch-btn" id="reg-rx_panoramica" onclick="toggleRegistroGeneral('rx_panoramica')" style="font-size:10px;">Panorámica</button>
+        <button class="action-touch-btn" id="reg-rx_cefalometria" onclick="toggleRegistroGeneral('rx_cefalometria')" style="font-size:10px;">Cefalometría</button>
+        <button class="action-touch-btn" id="reg-rx_cbct" onclick="toggleRegistroGeneral('rx_cbct')" style="font-size:10px;">CBCT</button>
+      </div>
+      <div class="modal-btns">
+        <button class="touch-btn active" style="background:#ea580c; border-color:#f97316;" onclick="closeAnamnesisModal()">Guardar Alertas</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Consentimiento & Firma -->
+  <div id="consent-modal" class="modal-overlay">
+    <div class="modal-card">
+      <h3 style="font-size: 15px; color: var(--primary); margin-bottom: 10px;">Validación de Consentimiento</h3>
+      <div class="grid-2col">
+        <input type="text" id="pdf-patient-name" class="modal-input" placeholder="Nombre Paciente">
+        <input type="text" id="pdf-patient-id" class="modal-input" placeholder="DNI / ID">
+      </div>
+      <div class="grid-2col">
+        <input type="text" id="pdf-doctor-name" class="modal-input" placeholder="Nombre del odontólogo tratante">
+        <input type="text" id="pdf-doctor-cop" class="modal-input" placeholder="N.° COP (opcional)">
+      </div>
+      <input type="tel" id="pdf-patient-phone" class="modal-input" placeholder="Teléfono paciente (+51 987 654 321) — requerido para GHL">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+        <label style="font-size: 11px; color: var(--text-muted); font-weight:700;">Firma Táctil:</label>
+        <button onclick="clearSignature()" style="background:transparent; border:none; color:#f43f5e; font-size:11px; cursor:pointer; font-weight:700;">Limpiar</button>
+      </div>
+      <canvas id="signature-pad" width="430" height="110"></canvas>
+      <div class="modal-btns">
+        <button class="touch-btn" onclick="closeConsentModal()">Cancelar</button>
+        <button class="touch-btn" style="background:#16a34a; border-color:#22c55e; color:#fff;" onclick="submitConsent('ghl')">🚀 GHL</button>
+        <button class="touch-btn btn-pdf" onclick="submitConsent('pdf')">📄 Guardar PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="lab-order-modal" class="modal-overlay">
+    <div class="modal-card" style="max-height: 85vh; overflow-y: auto;">
+      <h3 style="font-size: 15px; color: var(--primary); margin-bottom: 4px;">Orden de Laboratorio</h3>
+      <p style="font-size: 10.5px; color: var(--text-muted); margin: 0 0 10px;">Junta todo lo ya marcado (piezas, material, color) con los datos que el laboratorio necesita. Todos los campos de esta pantalla son opcionales salvo que tu laboratorio los exija — dejá en blanco lo que no aplique.</p>
+
+      <div class="grid-2col">
+        <input type="text" id="lab-patient-name" class="modal-input" placeholder="Nombre Paciente">
+        <input type="text" id="lab-patient-id" class="modal-input" placeholder="DNI / ID">
+      </div>
+      <div class="grid-2col">
+        <input type="text" id="lab-doctor-name" class="modal-input" placeholder="Nombre del odontólogo tratante">
+        <input type="text" id="lab-doctor-cop" class="modal-input" placeholder="N.° COP (opcional)">
+      </div>
+      <input type="text" id="lab-nombre-laboratorio" class="modal-input" placeholder="Nombre del laboratorio destino">
+
+      <div class="grid-2col">
+        <div>
+          <label style="font-size: 10px; color: var(--text-muted); font-weight:700;">Fecha de entrega solicitada:</label>
+          <input type="date" id="lab-fecha-entrega" class="modal-input">
+        </div>
+        <div>
+          <label style="font-size: 10px; color: var(--text-muted); font-weight:700;">Registro utilizado:</label>
+          <div class="grid-2col" style="gap:4px;">
+            <button class="action-touch-btn active" id="btn-registro-impresion" style="font-size:10px; min-height:34px;" onclick="setTipoRegistro('impresion')">Impresión</button>
+            <button class="action-touch-btn" id="btn-registro-escaneo" style="font-size:10px; min-height:34px;" onclick="setTipoRegistro('escaneo')">Escaneo Digital</button>
+          </div>
+        </div>
+      </div>
+
+      <label style="font-size: 10px; color: var(--text-muted); font-weight:700;">Diseño de margen / línea de terminación (opcional):</label>
+      <input type="text" id="lab-diseno-margen" class="modal-input" placeholder="Ej: supragingival, subgingival 0.5mm...">
+
+      <label style="font-size: 10px; color: var(--text-muted); font-weight:700;">Color por tercio — solo si tu laboratorio lo pide (opcional, además del tono VITA ya marcado por pieza):</label>
+      <div class="grid-3col">
+        <input type="text" id="lab-color-cervical" class="modal-input" placeholder="Cervical" style="font-size:10.5px;">
+        <input type="text" id="lab-color-medio" class="modal-input" placeholder="Medio" style="font-size:10.5px;">
+        <input type="text" id="lab-color-incisal" class="modal-input" placeholder="Incisal/Oclusal" style="font-size:10.5px;">
+      </div>
+
+      <label style="font-size: 10px; color: var(--text-muted); font-weight:700;">Tipo de conexión (solo si hay puentes marcados, opcional):</label>
+      <input type="text" id="lab-tipo-conexion" class="modal-input" placeholder="Ej: cementado, atornillado, póntico ovoide...">
+
+      <label style="font-size: 10px; color: var(--text-muted); font-weight:700;">Indicaciones adicionales:</label>
+      <textarea id="lab-notas" class="modal-input" rows="3" style="resize:vertical; font-family:inherit;" placeholder="Cualquier instrucción especial para este caso..."></textarea>
+
+      <p style="font-size: 9.5px; color: var(--text-muted); margin: 6px 0 0;">El PDF incluye una línea en blanco para firma y timbre — la orden de laboratorio la firma el odontólogo al entregarla, no se firma en pantalla como el consentimiento del paciente.</p>
+
+      <div class="modal-btns">
+        <button class="touch-btn" onclick="closeLabOrderModal()">Cancelar</button>
+        <button class="touch-btn btn-pdf" onclick="generateLabOrderPDF()">📄 Generar Orden PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="status">Iniciando visor 3D...</div>
+  <canvas id="canvas"></canvas>
+
+  <script>
+    const CONFIG = {
+      adult: {
+        inferior: { glb: './arcada_inferior.glb', json: './dientes_posiciones.json' },
+        superior: { glb: './arcada_superior.glb', json: './dientes_superiores_posiciones.json' }
+      },
+      temporal: {
+        inferior: { glb: './arcada_temporal_inferior.glb', json: './dientes_temporales_inferiores.json' },
+        superior: { glb: './arcada_temporal_superior.glb', json: './dientes_temporales_superiores.json' }
+      }
+    };
+
+    // ⚠️ PRECIOS DE REFERENCIA — NO SON LOS PRECIOS REALES DE FASSIARA.
+    // Este listado (heredado en pesos chilenos) fue convertido a soles usando
+    // rangos de mercado típicos de clínicas dentales privadas en Perú (2026),
+    // solo para que la calculadora de presupuesto no muestre cifras absurdas
+    // mientras se configura. El equipo de Fassiara debe reemplazar cada valor
+    // por su propia lista de tarifas antes de usar esto con pacientes reales
+    // — sobre todo porque el presupuesto se imprime en el PDF de consentimiento.
+    const ARANCELES = {
+      caries: 170, resina: 150, corona: 1060, endodoncia: 600, implante: 2480,
+      inlay: 540, onlay: 600, overlay: 680, carilla: 840, puente_tramo: 720,
+      protesis_total: 1320, ppr_esqueletica: 1220, ppr_flexible: 1100, gancho_ppr: 130,
+      resto_radicular: 250, trauma_incompleta: 210, trauma_pulpar: 740, trauma_radicular: 280,
+      malposicion_correccion: 130, blanqueamiento_arcada: 540, plano_miorrelajante: 560,
+      rehabilitacion_faceta: 170, bracket_metal: 95, bracket_zafiro: 170, arco_orto: 130,
+      sellante: 85, fluor_focal: 70, fluor_arcada: 130, pulpotomia: 280, pulpectomia: 360,
+      mantenedor: 420, exodoncia: 190, impactado: 460, lesion_apicectomia: 340,
+      lesion: 340, perno_munon: 320, perno: 320,
+      // Cirugía Maxilofacial / Implantología Avanzada
+      bloque: 2080, seno: 1820, rog: 1220,
+      // Endodoncia Avanzada — precio según sea uni o multirradicular
+      endo_unico: 540, endo_molar: 840,
+      // Higiene, Periodoncia Compleja, Ortopedia Funcional, Retención
+      profilaxis: 130,
+      gingivectomia: 680, colgajo: 960, rtg_perio: 1220, alargamiento: 560,
+      aparato_funcional: 1440, retenedor: 340
+    };
+
+
+    const VITA_COLORS = {
+      'BL1': 0xffffff, 'A1': 0xfaf5eb, 'A2': 0xf5ebd6, 'A3': 0xedd6b4,
+      'B1': 0xfdfaf2, 'B2': 0xf7eed7, 'C1': 0xede6d8, 'D2': 0xebe0d2
+    };
+
+    const STATE_COLORS = {
+      diagnosticado: 0xdc2626,
+      existente: 0x2563eb,
+      realizado: 0x16a34a
+    };
+
+    let isDarkMode = false;
+    let currentMode = 'adult';
+    let currentArch = 'inferior';
+    let selectedTooth = null;
+    let currentClinicalState = 'diagnosticado';
+    let activeSpecialty = 'odonto';
+    let consentActionType = 'pdf';
+
+    let bridgeStartTooth = null;
+    const bridges = [];
+
+    const medicalAlerts = {
+      penicilina: false, latex: false, anestesia: false, anticoagulado: false,
+      hipertension: false, diabetes: false, embarazo: false, asma: false, otras: ''
+    };
+    // Nivel paciente completo, no por diente ni por arcada — mismo
+    // criterio que ATM. Profilaxis es un procedimiento de boca
+    // completa; las radiografías son un registro de qué estudios se
+    // solicitaron, no un análisis de imagen (eso sigue fuera de
+    // alcance por el tema regulatorio ya evaluado antes).
+    const registrosGenerales = {
+      profilaxis: false,
+      rx_periapical: false, rx_bitewing: false, rx_panoramica: false,
+      rx_cefalometria: false, rx_cbct: false
+    };
+
+    const clinicalRecords = {};
+    const perioRecords = {};
+    const removableRecords = { inferior: { type: null, retainers: [], material: null, kennedy: null }, superior: { type: null, retainers: [], material: null, kennedy: null } };
+    const occlusionRecords = { inferior: { splint: false, facets: {} }, superior: { splint: false, facets: {} } };
+    // ATM no es por diente ni por arcada — es una evaluación del
+    // paciente, bilateral (izq/der), independiente de qué arcada
+    // esté viendo el visor en este momento.
+    const atmRecords = { click_izq: false, click_der: false, dolor_izq: false, dolor_der: false, desviacion: null };
+    const esteticaRecords = { inferior: { bleaching: false, shades: {} }, superior: { bleaching: false, shades: {} } };
+    const pediatricRecords = { inferior: { fluorArch: false }, superior: { fluorArch: false } };
+    const orthoRecords = { inferior: { brackets: {}, wire: 'none', aparatoFuncional: null, retenedor: null }, superior: { brackets: {}, wire: 'none', aparatoFuncional: null, retenedor: null } };
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xe7dbd6);
+
+    const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.01, 1000);
+    const renderer = new THREE.WebGLRenderer({
+      canvas: document.getElementById('canvas'),
+      antialias: true,
+      preserveDrawingBuffer: true
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.outputEncoding = THREE.sRGBEncoding;
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x94a3b8, 1.1);
+    scene.add(hemiLight);
+
+    const mainLight = new THREE.DirectionalLight(0xffffff, 0.95);
+    mainLight.position.set(5, 10, 6);
+    scene.add(mainLight);
+
+    const rimLight = new THREE.DirectionalLight(0x64748b, 0.6);
+    rimLight.position.set(-6, -6, -5);
+    scene.add(rimLight);
+
+    const archContainer = new THREE.Group();
+    scene.add(archContainer);
+
+    let activeModel = null;
+    let currentLoadToken = 0;
+    const meshTargets = [];
+
+    const hitBoxes = new THREE.Group();
+    const pathologiesGroup = new THREE.Group();
+    const perioGroup = new THREE.Group();
+    const bridgesGroup = new THREE.Group();
+    const removableGroup = new THREE.Group();
+    const occlusionGroup = new THREE.Group();
+    const traumaGroup = new THREE.Group();
+    const malpositionGroup = new THREE.Group();
+    const esteticaGroup = new THREE.Group();
+    const orthoGroup = new THREE.Group();
+    const pediatricGroup = new THREE.Group();
+    const surgeryGroup = new THREE.Group();
+    const endoGroup = new THREE.Group();
+
+    scene.add(hitBoxes, pathologiesGroup, perioGroup, bridgesGroup, removableGroup, occlusionGroup, traumaGroup, malpositionGroup, esteticaGroup, orthoGroup, pediatricGroup, surgeryGroup, endoGroup);
+
+    const layerVisibility = {
+      general: true, surgery: true, perio: true, bridges: true,
+      removible: true, occlusion: true, trauma: true, malposition: true,
+      estetica: true, pediatric: true, ortho: true
+    };
+
+    window.toggleLayer = function(layerKey) {
+      layerVisibility[layerKey] = !layerVisibility[layerKey];
+      const active = layerVisibility[layerKey];
+      document.getElementById(`layer-${layerKey}`)?.classList.toggle('active', active);
+
+      if (layerKey === 'general') { pathologiesGroup.visible = active; endoGroup.visible = active; }
+      if (layerKey === 'surgery') surgeryGroup.visible = active;
+      if (layerKey === 'perio') perioGroup.visible = active;
+      if (layerKey === 'bridges') bridgesGroup.visible = active;
+      if (layerKey === 'removible') removableGroup.visible = active;
+      if (layerKey === 'occlusion') occlusionGroup.visible = active;
+      if (layerKey === 'trauma') traumaGroup.visible = active;
+      if (layerKey === 'malposition') malpositionGroup.visible = active;
+      if (layerKey === 'estetica') esteticaGroup.visible = active;
+      if (layerKey === 'pediatric') pediatricGroup.visible = active;
+      if (layerKey === 'ortho') orthoGroup.visible = active;
+    };
+
+    window.toggleAppTheme = function() {
+      isDarkMode = !isDarkMode;
+      document.body.classList.toggle('dark-mode', isDarkMode);
+      document.getElementById('btn-theme-toggle').innerText = isDarkMode ? '🌙' : '☀️';
+      scene.background = new THREE.Color(isDarkMode ? 0x150d10 : 0xe7dbd6);
+      hemiLight.groundColor.setHex(isDarkMode ? 0x1e293b : 0x94a3b8);
+      hemiLight.intensity = isDarkMode ? 1.4 : 1.1;
+    };
+
+    window.toggleBottomSheet = function() {
+      document.getElementById('bottom-sheet').classList.toggle('minimized');
+    };
+
+    window.switchSpecialty = function(specKey) {
+      activeSpecialty = specKey;
+      const specialties = ['odonto', 'cirugia', 'endo', 'perio', 'protesis', 'removible', 'occlusion', 'trauma', 'malposition', 'estetica', 'pediatria', 'ortho'];
+      const specNames = {
+        odonto: 'Odontología General', cirugia: 'Cirugía Oral', endo: 'Endodoncia Avanzada', perio: 'Periodoncia',
+        protesis: 'Prótesis Fija', removible: 'Prótesis Removible', occlusion: 'Oclusión y ATM',
+        trauma: 'Trauma y Fracturas', malposition: 'Malposición y Eje', estetica: 'Color VITA',
+        pediatria: 'Odontopediatría', ortho: 'Ortodoncia'
+      };
+
+      specialties.forEach(s => {
+        const btn = document.getElementById(`rail-${s}`);
+        const panel = document.getElementById(`panel-${s}`);
+        if (btn) btn.classList.toggle('active', s === specKey);
+        if (panel) panel.style.display = (s === specKey) ? 'block' : 'none';
+      });
+
+      document.getElementById('lbl-specialty-name').innerText = `(${specNames[specKey]})`;
+      document.getElementById('bottom-sheet').classList.remove('minimized');
+    };
+
+    // Alertas Médicas
+    window.openAnamnesisModal = function() { document.getElementById('anamnesis-modal').style.display = 'flex'; };
+    window.closeAnamnesisModal = function() {
+      medicalAlerts.otras = document.getElementById('med-other-notes').value.trim();
+      document.getElementById('anamnesis-modal').style.display = 'none';
+      updateMedicalAlertBanner();
+    };
+    window.toggleMedicalAlert = function(alertKey) {
+      medicalAlerts[alertKey] = !medicalAlerts[alertKey];
+      document.getElementById(`alert-${alertKey}`)?.classList.toggle('active', medicalAlerts[alertKey]);
+    };
+    window.toggleRegistroGeneral = function(key) {
+      registrosGenerales[key] = !registrosGenerales[key];
+      document.getElementById(`reg-${key}`)?.classList.toggle('active', registrosGenerales[key]);
+    };
+    function updateMedicalAlertBanner() {
+      const box = document.getElementById('alert-pill-box');
+      box.innerHTML = '';
+      const map = { penicilina:'⚠️ Penicilina', latex:'⚠️ Látex', anestesia:'⚠️ Vasoconstrictor', anticoagulado:'🩸 Anticoagulado', hipertension:'❤️ HTA', diabetes:'🍬 Diabetes', embarazo:'🤰 Embarazo', asma:'🫁 Asma' };
+      for (const [k, v] of Object.entries(medicalAlerts)) {
+        if (v && map[k]) box.innerHTML += `<div class="alert-pill">${map[k]}</div>`;
+      }
+      if (medicalAlerts.otras) box.innerHTML += `<div class="alert-pill" style="background:#ea580c;">⚠️ ${medicalAlerts.otras}</div>`;
+    }
+
+    // Modal Presupuesto
+    window.openBudgetModal = function() {
+      const data = calculateBudget();
+      document.getElementById('modal-total-budget').innerText = `S/ ${data.total.toLocaleString('es-PE')}`;
+      const list = document.getElementById('modal-budget-list');
+      if (data.items.length === 0) {
+        list.innerHTML = '<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:16px;">Sin tratamientos requeridos diagnosticados</div>';
+      } else {
+        list.innerHTML = data.items.map(it => `
+          <div style="background:var(--bg-card); padding:8px 12px; border-radius:8px; display:flex; justify-content:space-between; font-size:11.5px; border:1px solid var(--border-subtle);">
+            <span>${it.item}</span><strong style="color:var(--primary);">S/ ${it.price.toLocaleString('es-PE')}</strong>
+          </div>
+        `).join('');
+      }
+      document.getElementById('budget-modal').style.display = 'flex';
+    };
+    window.closeBudgetModal = function() { document.getElementById('budget-modal').style.display = 'none'; };
+
+    let currentPositions = {};
+    const loader = new THREE.GLTFLoader();
+    // Los .glb del repo están comprimidos con Draco (~5-7x más livianos
+    // para poder subirlos a GitHub sin chocar con el límite de 100MB).
+    // Sin este decoder, GLTFLoader no puede leerlos.
+    const dracoLoader = new THREE.DRACOLoader();
+    dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+    loader.setDRACOLoader(dracoLoader);
+
+    function getAnatomicalOrder() {
+      return (currentMode === 'temporal')
+        ? (currentArch === 'superior' ? [55,54,53,52,51,61,62,63,64,65] : [85,84,83,82,81,71,72,73,74,75])
+        : (currentArch === 'superior' ? [18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28] : [48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38]);
+    }
+
+    async function loadArchData() {
+      document.getElementById('status').innerText = 'Cargando arcada 3D...';
+      const setting = CONFIG[currentMode][currentArch];
+      const loadToken = ++currentLoadToken;
+
+      while (archContainer.children.length > 0) {
+        const obj = archContainer.children[0];
+        obj.traverse((child) => {
+          if (child.isMesh) {
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) {
+              if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+              else child.material.dispose();
+            }
+          }
+        });
+        archContainer.remove(obj);
+      }
+      meshTargets.length = 0;
+      activeModel = null;
+
+      try {
+        const res = await fetch(setting.json);
+        currentPositions = await res.json();
+      } catch (err) { currentPositions = {}; }
+
+      loader.load(setting.glb, (gltf) => {
+        if (loadToken !== currentLoadToken) return;
+
+        activeModel = gltf.scene;
+        archContainer.add(activeModel);
+        activeModel.updateMatrixWorld(true);
+
+        const box = new THREE.Box3().setFromObject(activeModel);
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+        activeModel.position.sub(center);
+
+        const maxDim = Math.max(size.x, size.y, size.z);
+        if (maxDim > 0 && (maxDim < 0.5 || maxDim > 5.0)) activeModel.scale.setScalar(2.0 / maxDim);
+        activeModel.updateMatrixWorld(true);
+
+        activeModel.traverse(c => {
+          if (c.isMesh) {
+            meshTargets.push(c);
+            if (c.material) {
+              c.material.side = THREE.DoubleSide;
+              if (c.material.isMeshStandardMaterial || c.material.isMeshPhysicalMaterial) {
+                c.material.roughness = 0.38;
+                c.material.metalness = 0.0;
+              }
+            }
+          }
+        });
+
+        camera.position.set(0, currentArch === 'inferior' ? 3.2 : -3.2, 1.4);
+        camera.lookAt(0, 0, 0);
+        controls.target.set(0, 0, 0);
+        controls.update();
+
+        buildGlobalHitBoxes();
+        renderAllLayers();
+        calculateBudget();
+        document.getElementById('status').innerText = `Listo: ${currentMode.toUpperCase()} - ${currentArch.toUpperCase()}`;
+      });
+    }
+
+    function getToothWorldPos(pos) {
+      if (!pos || !activeModel) return new THREE.Vector3(0,0,0);
+      return activeModel.localToWorld(new THREE.Vector3(pos.x, pos.y, pos.z));
+    }
+
+    function buildGlobalHitBoxes() {
+      while(hitBoxes.children.length > 0) hitBoxes.remove(hitBoxes.children[0]);
+      for (const [fdi, pos] of Object.entries(currentPositions)) {
+        const hit = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), new THREE.MeshBasicMaterial({ visible: false }));
+        hit.position.copy(getToothWorldPos(pos));
+        hit.userData = { fdi: parseInt(fdi) };
+        hitBoxes.add(hit);
+      }
+    }
+
+    window.setClinicalState = function(st) {
+      currentClinicalState = st;
+      ['diagnosticado', 'existente', 'realizado'].forEach(s => {
+        document.getElementById(`traffic-${s}`)?.classList.toggle(`active-${s}`, s === st);
+      });
+    };
+
+    function renderAllLayers() {
+      renderClinicalPathologies();
+      renderSurgery();
+      renderEndoAdvanced();
+      renderPerioMarkers();
+      renderBridges();
+      renderRemovable();
+      renderOcclusion();
+      renderTrauma();
+      renderMalposition();
+      renderEstetica();
+      renderOrtho();
+      renderPediatric();
+    }
+
+    // Sistema Limpio de Marcas por Caras (Alto Contraste Clínico)
+    function renderClinicalPathologies() {
+      while(pathologiesGroup.children.length > 0) pathologiesGroup.remove(pathologiesGroup.children[0]);
+      for (const [fdi, pos] of Object.entries(currentPositions)) {
+        const rec = clinicalRecords[fdi];
+        const p = getToothWorldPos(pos);
+        const yDir = currentArch === 'superior' ? -1 : 1;
+
+        if (rec) {
+          const itemColor = STATE_COLORS[rec.status || 'diagnosticado'];
+
+          if (rec.general === 'ausente') {
+            const crossMat = new THREE.MeshBasicMaterial({ color: 0xef4444, depthTest: false });
+            const bar1 = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.18, 12), crossMat);
+            bar1.position.set(p.x, p.y + (yDir * 0.04), p.z);
+            bar1.rotation.set(Math.PI/2, 0, Math.PI/4);
+            const bar2 = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.18, 12), crossMat);
+            bar2.position.set(p.x, p.y + (yDir * 0.04), p.z);
+            bar2.rotation.set(Math.PI/2, 0, -Math.PI/4);
+            pathologiesGroup.add(bar1, bar2);
+            continue;
+          }
+          if (rec.general === 'corona') {
+            const crown = new THREE.Mesh(new THREE.SphereGeometry(0.07, 16, 16), new THREE.MeshBasicMaterial({ color: itemColor, depthTest: false }));
+            crown.position.copy(p);
+            pathologiesGroup.add(crown);
+          }
+          if (rec.general === 'implante') {
+            const imp = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.02, 0.15, 12), new THREE.MeshBasicMaterial({ color: rec.status === 'realizado' ? 0x16a34a : 0x64748b, depthTest: false }));
+            imp.position.set(p.x, p.y - (yDir * 0.05), p.z);
+            pathologiesGroup.add(imp);
+          }
+          if (rec.general === 'endodoncia') {
+            const canal = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.008, 0.16, 10), new THREE.MeshBasicMaterial({ color: itemColor, depthTest: false }));
+            canal.position.set(p.x, p.y - (yDir * 0.02), p.z);
+            pathologiesGroup.add(canal);
+          }
+          if (rec.restoration === 'inlay') {
+            const box = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.03, 0.05), new THREE.MeshBasicMaterial({ color: itemColor, depthTest: false }));
+            box.position.set(p.x, p.y + (yDir * 0.015), p.z);
+            pathologiesGroup.add(box);
+          }
+          if (rec.restoration === 'onlay') {
+            const box = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.04, 0.065), new THREE.MeshBasicMaterial({ color: itemColor, depthTest: false }));
+            box.position.set(p.x, p.y + (yDir * 0.02), p.z);
+            pathologiesGroup.add(box);
+          }
+          if (rec.restoration === 'overlay') {
+            const box = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.05, 0.08), new THREE.MeshBasicMaterial({ color: itemColor, depthTest: false }));
+            box.position.set(p.x, p.y + (yDir * 0.025), p.z);
+            pathologiesGroup.add(box);
+          }
+          if (rec.restoration === 'carilla') {
+            // Carilla: restauración de cara vestibular (frontal), no
+            // oclusal — por eso va desplazada hacia adelante (mismo
+            // offset 'V' que usan las marcas de cara) y no centrada
+            // ni con volumen como las incrustaciones.
+            const veneer = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.09, 0.012), new THREE.MeshBasicMaterial({ color: itemColor, depthTest: false }));
+            veneer.position.set(p.x, p.y, p.z + 0.058);
+            pathologiesGroup.add(veneer);
+          }
+          if (rec.faces) {
+            const isRight = parseInt(fdi) < 20 || (parseInt(fdi) >= 40 && parseInt(fdi) < 60) || parseInt(fdi) >= 80;
+            const offsets = {
+              'O': new THREE.Vector3(0, yDir * 0.025, 0),
+              'V': new THREE.Vector3(0,0,0.055),
+              'L': new THREE.Vector3(0,0,-0.055),
+              'M': new THREE.Vector3(isRight ? -0.055 : 0.055, 0, 0),
+              'D': new THREE.Vector3(isRight ? 0.055 : -0.055, 0, 0)
+            };
+            for (const [face, state] of Object.entries(rec.faces)) {
+              const patch = new THREE.Mesh(new THREE.SphereGeometry(0.03, 12, 12), new THREE.MeshBasicMaterial({ color: STATE_COLORS[state] || 0xdc2626, depthTest: false }));
+              patch.position.copy(p).add(offsets[face] || new THREE.Vector3());
+              pathologiesGroup.add(patch);
+            }
+          }
+        }
+        if (selectedTooth === parseInt(fdi)) {
+          const ring = new THREE.Mesh(new THREE.RingGeometry(0.055, 0.075, 32), new THREE.MeshBasicMaterial({ color: 0x0284c7, side: THREE.DoubleSide, depthTest: false }));
+          ring.position.set(p.x, p.y + (yDir * 0.035), p.z);
+          ring.rotation.x = Math.PI / 2;
+          pathologiesGroup.add(ring);
+        }
+      }
+    }
+
+    function renderSurgery() {
+      while(surgeryGroup.children.length > 0) surgeryGroup.remove(surgeryGroup.children[0]);
+      const yDir = currentArch === 'superior' ? -1 : 1;
+      for (const [fdi, pos] of Object.entries(currentPositions)) {
+        const rec = clinicalRecords[fdi];
+        if (!rec || !rec.surgery) continue;
+        const p = getToothWorldPos(pos);
+        const color = STATE_COLORS[rec.status || 'diagnosticado'];
+
+        if (rec.surgery === 'exodoncia') {
+          const cone = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.07, 8), new THREE.MeshBasicMaterial({ color, depthTest: false }));
+          cone.position.set(p.x, p.y + (yDir * 0.08), p.z);
+          if (currentArch === 'superior') cone.rotation.x = Math.PI;
+          surgeryGroup.add(cone);
+        }
+        if (rec.surgery === 'resto') {
+          const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.032, 0.05, 12), new THREE.MeshStandardMaterial({ color: 0x991b1b, depthTest: false }));
+          cap.position.set(p.x, p.y - (yDir * 0.02), p.z);
+          surgeryGroup.add(cap);
+        }
+        if (rec.surgery === 'impactado') {
+          const box = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.16, 0.13), new THREE.MeshBasicMaterial({ color, wireframe: true, depthTest: false }));
+          box.position.set(p.x, p.y - (yDir * 0.14), p.z + 0.02);
+          surgeryGroup.add(box);
+        }
+        if (rec.surgery === 'lesion') {
+          const lesion = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 12), new THREE.MeshBasicMaterial({ color, depthTest: false }));
+          lesion.position.set(p.x, p.y - (yDir * 0.30), p.z + 0.04);
+          surgeryGroup.add(lesion);
+        }
+        if (rec.surgery === 'perno') {
+          const post = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.008, 0.14, 10), new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.85, depthTest: false }));
+          post.position.set(p.x, p.y + (yDir * 0.015), p.z);
+          surgeryGroup.add(post);
+        }
+        if (rec.surgery === 'bloque') {
+          const block = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.05, 0.07), new THREE.MeshStandardMaterial({ color: 0xd6a35c, depthTest: false }));
+          block.position.set(p.x, p.y - (yDir * 0.16), p.z);
+          surgeryGroup.add(block);
+        }
+        if (rec.surgery === 'seno') {
+          const dome = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.55, depthTest: false }));
+          dome.position.set(p.x, p.y - (yDir * 0.22), p.z);
+          dome.rotation.x = currentArch === 'superior' ? 0 : Math.PI;
+          surgeryGroup.add(dome);
+        }
+        if (rec.surgery === 'rog') {
+          const membrane = new THREE.Mesh(new THREE.CircleGeometry(0.07, 16), new THREE.MeshBasicMaterial({ color: 0xf472b6, transparent: true, opacity: 0.5, depthTest: false, side: THREE.DoubleSide }));
+          membrane.position.set(p.x, p.y - (yDir * 0.12), p.z);
+          membrane.rotation.x = Math.PI / 2;
+          surgeryGroup.add(membrane);
+        }
+        if (rec.surgery === 'gingivectomia') {
+          // Línea curva a nivel de encía, representando el recorte
+          const arc = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.006, 6, 12, Math.PI), new THREE.MeshBasicMaterial({ color: 0xfacc15, depthTest: false }));
+          arc.position.set(p.x, p.y - (yDir * 0.02), p.z);
+          arc.rotation.x = Math.PI / 2;
+          surgeryGroup.add(arc);
+        }
+        if (rec.surgery === 'colgajo') {
+          // Un rectángulo levemente separado del diente, representando el colgajo levantado
+          const flap = new THREE.Mesh(new THREE.PlaneGeometry(0.08, 0.1), new THREE.MeshBasicMaterial({ color: 0xef4444, transparent: true, opacity: 0.45, depthTest: false, side: THREE.DoubleSide }));
+          flap.position.set(p.x, p.y - (yDir * 0.05), p.z + 0.04);
+          surgeryGroup.add(flap);
+        }
+        if (rec.surgery === 'rtg_perio') {
+          // Misma idea visual que ROG (membrana) pero de otro color —
+          // procedimiento distinto (perio, no implante), no deberían
+          // confundirse mirando el modelo.
+          const membrane = new THREE.Mesh(new THREE.CircleGeometry(0.06, 16), new THREE.MeshBasicMaterial({ color: 0xa78bfa, transparent: true, opacity: 0.5, depthTest: false, side: THREE.DoubleSide }));
+          membrane.position.set(p.x, p.y - (yDir * 0.09), p.z);
+          membrane.rotation.x = Math.PI / 2;
+          surgeryGroup.add(membrane);
+        }
+        if (rec.surgery === 'alargamiento') {
+          const ring = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.007, 6, 16), new THREE.MeshBasicMaterial({ color: 0x0891b2, depthTest: false }));
+          ring.position.set(p.x, p.y, p.z);
+          ring.rotation.x = Math.PI / 2;
+          surgeryGroup.add(ring);
+        }
+      }
+    }
+
+    // Endodoncia Avanzada — un punto por conducto marcado, coloreado
+    // según el avance de la obturación (mismo lenguaje de color que
+    // el resto del sistema: rojo = falta, azul = en curso, verde =
+    // terminado). Los puntos se separan un poco entre sí para que no
+    // se superpongan cuando hay varios conductos en un mismo diente.
+    function renderEndoAdvanced() {
+      while (endoGroup.children.length > 0) endoGroup.remove(endoGroup.children[0]);
+      const yDir = currentArch === 'superior' ? -1 : 1;
+      const obtColor = { sin_preparar: 0xdc2626, preparado: 0x2563eb, obturado: 0x16a34a };
+      const canalOffsets = { mv: [-0.025, 0.02], dv: [0.025, 0.02], p: [0, -0.025], mesial: [-0.025, 0], distal: [0.025, 0], unico: [0, 0] };
+
+      for (const [fdi, pos] of Object.entries(currentPositions)) {
+        const rec = clinicalRecords[fdi];
+        if (!rec || !rec.canales) continue;
+        const p = getToothWorldPos(pos);
+        const color = obtColor[rec.endo_obturacion || 'sin_preparar'];
+
+        for (const [canal, marcado] of Object.entries(rec.canales)) {
+          if (!marcado) continue;
+          const [ox, oz] = canalOffsets[canal] || [0, 0];
+          const dot = new THREE.Mesh(new THREE.SphereGeometry(0.018, 10, 10), new THREE.MeshBasicMaterial({ color, depthTest: false }));
+          dot.position.set(p.x + ox, p.y - (yDir * 0.04), p.z + oz);
+          endoGroup.add(dot);
+        }
+      }
+    }
+
+    function renderPerioMarkers() {
+      while(perioGroup.children.length > 0) perioGroup.remove(perioGroup.children[0]);
+      const yDir = currentArch === 'superior' ? -1 : 1;
+
+      for (const [fdi, pos] of Object.entries(currentPositions)) {
+        const pRec = perioRecords[fdi];
+        if (!pRec) continue;
+        const p = getToothWorldPos(pos);
+        const isRight = parseInt(fdi) < 20 || (parseInt(fdi) >= 40 && parseInt(fdi) < 60) || parseInt(fdi) >= 80;
+
+        const offsets = {
+          'mv': new THREE.Vector3(isRight ? -0.045 : 0.045, -yDir * 0.015, 0.055),
+          'v':  new THREE.Vector3(0, -yDir * 0.015, 0.06),
+          'dv': new THREE.Vector3(isRight ? 0.045 : -0.045, -yDir * 0.015, 0.055),
+          'ml': new THREE.Vector3(isRight ? -0.045 : 0.045, -yDir * 0.015, -0.055),
+          'l':  new THREE.Vector3(0, -yDir * 0.015, -0.06),
+          'dl': new THREE.Vector3(isRight ? 0.045 : -0.045, -yDir * 0.015, -0.055)
+        };
+
+        for (const [site, depth] of Object.entries(pRec.depths || {})) {
+          const off = offsets[site];
+          if (!off) continue;
+          const rec = parseInt(pRec.recession?.[site]) || 0;
+          const basePos = p.clone().add(off);
+          basePos.y += yDir * (-rec * 0.01);
+          const totalLen = Math.max(0.04, (parseInt(depth) || 2) * 0.014);
+
+          let pColor = 0x22c55e;
+          if (depth >= 4 && depth <= 5) pColor = 0xf97316;
+          if (depth >= 6) pColor = 0xef4444;
+
+          const probe = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, totalLen, 8), new THREE.MeshBasicMaterial({ color: pColor, depthTest: false }));
+          probe.position.set(basePos.x, basePos.y + (yDir * (totalLen / 2)), basePos.z);
+          probe.renderOrder = 1000;
+          perioGroup.add(probe);
+
+          const tip = new THREE.Mesh(new THREE.SphereGeometry(0.009, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false }));
+          tip.position.set(basePos.x, basePos.y + (yDir * totalLen), basePos.z);
+          tip.renderOrder = 1001;
+          perioGroup.add(tip);
+
+          if (rec > 0) {
+            const recMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.006, 8), new THREE.MeshBasicMaterial({ color: 0xf97316, depthTest: false }));
+            recMesh.position.set(basePos.x, basePos.y, basePos.z);
+            recMesh.renderOrder = 1002;
+            perioGroup.add(recMesh);
+          }
+        }
+
+        for (const [site, hasBop] of Object.entries(pRec.bop || {})) {
+          if (hasBop) {
+            const off = offsets[site];
+            if (!off) continue;
+            const drop = new THREE.Mesh(new THREE.SphereGeometry(0.024, 12, 12), new THREE.MeshBasicMaterial({ color: 0xdc2626, depthTest: false }));
+            drop.position.copy(p).add(off).add(new THREE.Vector3(0, yDir * 0.045, 0));
+            drop.renderOrder = 1004;
+            perioGroup.add(drop);
+          }
+        }
+
+        if (pRec.movilidad > 0) {
+          const mov = new THREE.Mesh(new THREE.SphereGeometry(0.032, 12, 12), new THREE.MeshBasicMaterial({ color: 0xf59e0b, depthTest: false }));
+          mov.position.set(p.x, p.y + (yDir * 0.06), p.z);
+          perioGroup.add(mov);
+        }
+
+        if (pRec.furca > 0) {
+          const fColors = { 1: 0xfacc15, 2: 0xf97316, 3: 0xdc2626 };
+          const cone = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.05, 3), new THREE.MeshBasicMaterial({ color: fColors[pRec.furca] || 0xfacc15, depthTest: false }));
+          cone.position.set(p.x, p.y - (yDir * 0.04), p.z + 0.065);
+          cone.rotation.z = Math.PI;
+          perioGroup.add(cone);
+        }
+      }
+    }
+
+    function renderBridges() {
+      while(bridgesGroup.children.length > 0) bridgesGroup.remove(bridgesGroup.children[0]);
+      const yDir = currentArch === 'superior' ? -1 : 1;
+      bridges.filter(b => b.arch === currentArch).forEach(br => {
+        const p1 = getToothWorldPos(currentPositions[br.start]).add(new THREE.Vector3(0, yDir * 0.03, 0));
+        const p2 = getToothWorldPos(currentPositions[br.end]).add(new THREE.Vector3(0, yDir * 0.03, 0));
+        const dist = p1.distanceTo(p2);
+        const color = STATE_COLORS[br.status] || 0xf59e0b;
+        const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, dist, 16), new THREE.MeshBasicMaterial({ color, depthTest: false }));
+        cyl.position.copy(new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5));
+        cyl.setRotationFromQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0), new THREE.Vector3().subVectors(p2, p1).normalize()));
+        bridgesGroup.add(cyl);
+      });
+    }
+
+    function renderRemovable() {
+      while(removableGroup.children.length > 0) removableGroup.remove(removableGroup.children[0]);
+      const rem = removableRecords[currentArch];
+      const yDir = currentArch === 'superior' ? -1 : 1;
+      if (rem.type) {
+        const pts = getAnatomicalOrder().map(f => {
+          const p = getToothWorldPos(currentPositions[f]);
+          return new THREE.Vector3(p.x * 0.78, p.y - (yDir * 0.08), p.z * 0.78);
+        }).filter(v => v.length() > 0);
+        if (pts.length >= 4) {
+          const curve = new THREE.CatmullRomCurve3(pts);
+          const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 64, rem.type === 'esqueletica' ? 0.022 : 0.04, 10, false), new THREE.MeshStandardMaterial({ color: rem.type === 'esqueletica' ? 0x94a3b8 : 0xf472b6, metalness: rem.type === 'esqueletica' ? 0.9 : 0.1, depthTest: false }));
+          removableGroup.add(tube);
+        }
+      }
+      rem.retainers.forEach(f => {
+        const p = getToothWorldPos(currentPositions[f]);
+        const clasp = new THREE.Mesh(new THREE.TorusGeometry(0.065, 0.007, 8, 16, Math.PI * 1.4), new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.95, depthTest: false }));
+        clasp.position.set(p.x, p.y - (yDir * 0.01), p.z);
+        clasp.rotation.x = Math.PI / 2;
+        removableGroup.add(clasp);
+      });
+    }
+
+    function renderOcclusion() {
+      while(occlusionGroup.children.length > 0) occlusionGroup.remove(occlusionGroup.children[0]);
+      const occ = occlusionRecords[currentArch];
+      const yDir = currentArch === 'superior' ? -1 : 1;
+      if (occ.splint) {
+        const pts = getAnatomicalOrder().map(f => {
+          const p = getToothWorldPos(currentPositions[f]);
+          return new THREE.Vector3(p.x, p.y + (yDir * 0.025), p.z);
+        }).filter(v => v.length() > 0);
+        if (pts.length >= 3) {
+          const curve = new THREE.CatmullRomCurve3(pts);
+          const splint = new THREE.Mesh(new THREE.TubeGeometry(curve, 64, 0.045, 12, false), new THREE.MeshPhysicalMaterial({ color: 0xa5f3fc, transmission: 0.85, opacity: 0.55, transparent: true, depthTest: false }));
+          occlusionGroup.add(splint);
+        }
+      }
+      for (const [fdi, gr] of Object.entries(occ.facets || {})) {
+        if (gr > 0) {
+          const p = getToothWorldPos(currentPositions[fdi]);
+          const facet = new THREE.Mesh(new THREE.CylinderGeometry(0.03 + (gr*0.008), 0.03 + (gr*0.008), 0.006, 12), new THREE.MeshBasicMaterial({ color: 0xf59e0b, depthTest: false }));
+          facet.position.set(p.x, p.y + (yDir * 0.03), p.z);
+          occlusionGroup.add(facet);
+        }
+      }
+    }
+
+    function renderTrauma() {
+      while(traumaGroup.children.length > 0) traumaGroup.remove(traumaGroup.children[0]);
+      const yDir = currentArch === 'superior' ? -1 : 1;
+      for (const [fdi, pos] of Object.entries(currentPositions)) {
+        const rec = clinicalRecords[fdi];
+        if (!rec || !rec.trauma) continue;
+        const p = getToothWorldPos(pos);
+        if (rec.trauma === 'incompleta' || rec.trauma === 'pulpar') {
+          const line = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.012, 0.08), new THREE.MeshBasicMaterial({ color: rec.trauma === 'pulpar' ? 0xef4444 : 0xf97316, depthTest: false }));
+          line.position.set(p.x, p.y + (yDir * 0.03), p.z + 0.01);
+          line.rotation.z = Math.PI / 6;
+          traumaGroup.add(line);
+        }
+        if (rec.trauma === 'radicular') {
+          const rad = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.16, 8), new THREE.MeshBasicMaterial({ color: 0xd946ef, depthTest: false }));
+          rad.position.set(p.x, p.y - (yDir * 0.10), p.z + 0.045);
+          traumaGroup.add(rad);
+        }
+      }
+    }
+
+    function renderMalposition() {
+      while(malpositionGroup.children.length > 0) malpositionGroup.remove(malpositionGroup.children[0]);
+      const yDir = currentArch === 'superior' ? -1 : 1;
+      for (const [fdi, pos] of Object.entries(currentPositions)) {
+        const rec = clinicalRecords[fdi];
+        if (!rec || !rec.malposition) continue;
+        const p = getToothWorldPos(pos);
+        if (rec.malposition === 'diastema') {
+          const bar = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.04, 0.03), new THREE.MeshBasicMaterial({ color: 0x06b6d4, depthTest: false }));
+          bar.position.set(p.x - 0.05, p.y + (yDir * 0.02), p.z);
+          malpositionGroup.add(bar);
+        }
+        if (rec.malposition === 'giro') {
+          const torus = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.007, 8, 16, Math.PI * 1.5), new THREE.MeshBasicMaterial({ color: 0xeab308, depthTest: false }));
+          torus.position.set(p.x, p.y + (yDir * 0.04), p.z);
+          torus.rotation.x = Math.PI / 2;
+          malpositionGroup.add(torus);
+        }
+      }
+    }
+
+    function renderEstetica() {
+      while(esteticaGroup.children.length > 0) esteticaGroup.remove(esteticaGroup.children[0]);
+      const est = esteticaRecords[currentArch];
+      for (const [fdi, pos] of Object.entries(currentPositions)) {
+        const p = getToothWorldPos(pos);
+        const shade = est.shades[fdi];
+        if (shade && VITA_COLORS[shade]) {
+          const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.072, 14, 14), new THREE.MeshStandardMaterial({ color: VITA_COLORS[shade], roughness: 0.35, depthTest: false }));
+          mesh.position.copy(p);
+          esteticaGroup.add(mesh);
+        }
+        if (est.bleaching) {
+          const b = new THREE.Mesh(new THREE.SphereGeometry(0.08, 14, 14), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35, depthTest: false }));
+          b.position.copy(p);
+          esteticaGroup.add(b);
+        }
+      }
+    }
+
+    function renderOrtho() {
+      while(orthoGroup.children.length > 0) orthoGroup.remove(orthoGroup.children[0]);
+      const o = orthoRecords[currentArch];
+      const yDir = currentArch === 'superior' ? -1 : 1;
+      const anatomicalOrder = getAnatomicalOrder();
+      const bracketPoints = [];
+
+      anatomicalOrder.forEach(fdi => {
+        const bType = o.brackets[fdi];
+        const pos = currentPositions[fdi];
+        if (!pos) return;
+
+        const p = getToothWorldPos(pos);
+        const bracketPos = p.clone().add(new THREE.Vector3(0, -yDir * 0.005, 0.06));
+
+        if (bType) {
+          bracketPoints.push(bracketPos);
+          const brk = new THREE.Mesh(new THREE.BoxGeometry(0.034, 0.034, 0.02), new THREE.MeshStandardMaterial({ color: bType === 'zafiro' ? 0xe0f2fe : 0xd1d5db, metalness: 0.85, depthTest: false }));
+          brk.position.copy(bracketPos);
+          orthoGroup.add(brk);
+        }
+      });
+
+      if (o.wire && o.wire !== 'none' && bracketPoints.length >= 2) {
+        const curve = new THREE.CatmullRomCurve3(bracketPoints);
+        const wireColor = (o.wire === 'estetico') ? 0xf8fafc : 0xcbd5e1;
+        const wireMat = new THREE.MeshStandardMaterial({ color: wireColor, metalness: o.wire === 'estetico' ? 0.1 : 0.95, roughness: 0.2, depthTest: false });
+        const wireMesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 64, 0.006, 8, false), wireMat);
+        orthoGroup.add(wireMesh);
+      }
+    }
+
+    function renderPediatric() {
+      while(pediatricGroup.children.length > 0) pediatricGroup.remove(pediatricGroup.children[0]);
+      const yDir = currentArch === 'superior' ? -1 : 1;
+      const archFluorActive = pediatricRecords[currentArch]?.fluorArch;
+
+      for (const [fdi, pos] of Object.entries(currentPositions)) {
+        const rec = clinicalRecords[fdi];
+        const p = getToothWorldPos(pos);
+
+        if (archFluorActive || (rec && rec.pediatric === 'fluor')) {
+          const fluorSphere = new THREE.Mesh(new THREE.SphereGeometry(0.078, 16, 16), new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.4, depthTest: false }));
+          fluorSphere.position.copy(p);
+          pediatricGroup.add(fluorSphere);
+        }
+
+        if (!rec || !rec.pediatric) continue;
+
+        if (rec.pediatric === 'sellante') {
+          const s = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.008, 0.012), new THREE.MeshBasicMaterial({ color: 0x10b981, depthTest: false }));
+          s.position.set(p.x, p.y + (yDir * 0.035), p.z);
+          pediatricGroup.add(s);
+        }
+        if (rec.pediatric === 'mantenedor') {
+          const band = new THREE.Mesh(new THREE.CylinderGeometry(0.068, 0.068, 0.04, 16, 1, true), new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9, depthTest: false }));
+          band.position.copy(p);
+          pediatricGroup.add(band);
+        }
+      }
+    }
+
+    function calculateBudget() {
+      let total = 0;
+      const items = [];
+
+      for (const [fdi, rec] of Object.entries(clinicalRecords)) {
+        if (rec.status === 'existente') continue;
+        if (rec.general && ARANCELES[rec.general]) { items.push({ item: `Pz ${fdi}: ${rec.general.toUpperCase()}`, price: ARANCELES[rec.general] }); total += ARANCELES[rec.general]; }
+        if (rec.surgery && ARANCELES[rec.surgery]) { items.push({ item: `Pz ${fdi}: ${rec.surgery.toUpperCase()}`, price: ARANCELES[rec.surgery] }); total += ARANCELES[rec.surgery]; }
+        if (rec.trauma && ARANCELES[`trauma_${rec.trauma}`]) { items.push({ item: `Pz ${fdi}: Trauma ${rec.trauma}`, price: ARANCELES[`trauma_${rec.trauma}`] }); total += ARANCELES[`trauma_${rec.trauma}`]; }
+        if (rec.malposition && ARANCELES.malposicion_correccion) { items.push({ item: `Pz ${fdi}: ${rec.malposition}`, price: ARANCELES.malposicion_correccion }); total += ARANCELES.malposicion_correccion; }
+        if (rec.restoration && ARANCELES[rec.restoration]) { items.push({ item: `Pz ${fdi}: ${rec.restoration.toUpperCase()}`, price: ARANCELES[rec.restoration] }); total += ARANCELES[rec.restoration]; }
+        if (rec.pediatric && ARANCELES[rec.pediatric]) { items.push({ item: `Pz ${fdi}: ${rec.pediatric.toUpperCase()}`, price: ARANCELES[rec.pediatric] }); total += ARANCELES[rec.pediatric]; }
+        if (rec.faces) {
+          const diag = Object.values(rec.faces).filter(s => s !== 'existente').length;
+          if (diag > 0) { const sub = diag * ARANCELES.resina; items.push({ item: `Pz ${fdi}: Resina (${diag} caras)`, price: sub }); total += sub; }
+        }
+        if (rec.canales && Object.values(rec.canales).some(v => v)) {
+          const esMolar = getToothType(parseInt(fdi)) !== 'unico';
+          const price = esMolar ? ARANCELES.endo_molar : ARANCELES.endo_unico;
+          items.push({ item: `Pz ${fdi}: Endodoncia ${esMolar ? 'Multirradicular' : 'Unirradicular'}`, price });
+          total += price;
+        }
+      }
+
+      ['inferior', 'superior'].forEach(archKey => {
+        if (removableRecords[archKey].type) { const p = ARANCELES.ppr_esqueletica; items.push({ item: `PPR (${archKey})`, price: p }); total += p; }
+        if (occlusionRecords[archKey].splint) { items.push({ item: `Férula Miorrelajante (${archKey})`, price: ARANCELES.plano_miorrelajante }); total += ARANCELES.plano_miorrelajante; }
+        if (esteticaRecords[archKey].bleaching) { items.push({ item: `Blanqueamiento (${archKey})`, price: ARANCELES.blanqueamiento_arcada }); total += ARANCELES.blanqueamiento_arcada; }
+        if (pediatricRecords[archKey]?.fluorArch) { items.push({ item: `Flúor Arcada Completa (${archKey})`, price: ARANCELES.fluor_arcada }); total += ARANCELES.fluor_arcada; }
+        if (orthoRecords[archKey]?.wire && orthoRecords[archKey]?.wire !== 'none') { items.push({ item: `Arco Ortodóntico (${archKey})`, price: ARANCELES.arco_orto }); total += ARANCELES.arco_orto; }
+        if (orthoRecords[archKey]?.aparatoFuncional) { items.push({ item: `Aparato Funcional — ${orthoRecords[archKey].aparatoFuncional} (${archKey})`, price: ARANCELES.aparato_funcional }); total += ARANCELES.aparato_funcional; }
+        if (orthoRecords[archKey]?.retenedor && orthoRecords[archKey]?.retenedor !== 'retirado') { items.push({ item: `Retenedor — ${orthoRecords[archKey].retenedor} (${archKey})`, price: ARANCELES.retenedor }); total += ARANCELES.retenedor; }
+      });
+
+      if (registrosGenerales.profilaxis) { items.push({ item: 'Profilaxis (boca completa)', price: ARANCELES.profilaxis }); total += ARANCELES.profilaxis; }
+
+      document.getElementById('btn-top-budget').innerText = `💰 S/ ${total.toLocaleString('es-PE')}`;
+      return { total, items };
+    }
+
+    // Periodoncia 6 Sitios
+    window.cycleDepth = function(site) {
+      if (!selectedTooth) return;
+      if (!perioRecords[selectedTooth]) perioRecords[selectedTooth] = { depths: { mv:2, v:2, dv:2, ml:2, l:2, dl:2 }, recession: {}, bop: {}, movilidad:0, furca:0 };
+      if (!perioRecords[selectedTooth].depths) perioRecords[selectedTooth].depths = { mv:2, v:2, dv:2, ml:2, l:2, dl:2 };
+
+      const cur = perioRecords[selectedTooth].depths[site] || 2;
+      const next = cur >= 8 ? 2 : cur + 2;
+      perioRecords[selectedTooth].depths[site] = next;
+      document.getElementById(`lbl-perio-${site}`).innerText = `${next}mm`;
+      renderPerioMarkers();
+    };
+
+    window.cycleRecession = function(site) {
+      if (!selectedTooth) return;
+      if (!perioRecords[selectedTooth]) perioRecords[selectedTooth] = { depths: {}, recession: {}, bop: {}, movilidad:0, furca:0 };
+      if (!perioRecords[selectedTooth].recession) perioRecords[selectedTooth].recession = {};
+
+      const cur = perioRecords[selectedTooth].recession[site] || 0;
+      const next = cur >= 5 ? 0 : cur + 1;
+      perioRecords[selectedTooth].recession[site] = next;
+      document.getElementById(`lbl-rec-${site}`).innerText = `${next}mm`;
+      renderPerioMarkers();
+    };
+
+    window.toggleSiteBOP = function(site) {
+      if (!selectedTooth) return;
+      if (!perioRecords[selectedTooth]) perioRecords[selectedTooth] = { depths: {}, recession: {}, bop: {}, movilidad:0, furca:0 };
+      if (!perioRecords[selectedTooth].bop) perioRecords[selectedTooth].bop = {};
+
+      perioRecords[selectedTooth].bop[site] = !perioRecords[selectedTooth].bop[site];
+      document.getElementById(`btn-bop-${site}`)?.classList.toggle('active-bop', perioRecords[selectedTooth].bop[site]);
+      renderPerioMarkers();
+    };
+
+    window.cycleMovilidad = function() {
+      if (!selectedTooth) return;
+      const cur = perioRecords[selectedTooth]?.movilidad || 0;
+      const next = (cur + 1) % 4;
+      if (!perioRecords[selectedTooth]) perioRecords[selectedTooth] = { depths: {}, bop: {}, movilidad:0, furca:0 };
+      perioRecords[selectedTooth].movilidad = next;
+      document.getElementById('lbl-mov-val').innerText = `G${next}`;
+      renderPerioMarkers();
+    };
+
+    window.cycleFurca = function() {
+      if (!selectedTooth) return;
+      const cur = perioRecords[selectedTooth]?.furca || 0;
+      const next = (cur + 1) % 4;
+      if (!perioRecords[selectedTooth]) perioRecords[selectedTooth] = { depths: {}, bop: {}, movilidad:0, furca:0 };
+      perioRecords[selectedTooth].furca = next;
+      document.getElementById('lbl-furca-val').innerText = `F${next}`;
+      renderPerioMarkers();
+    };
+
+    // Acciones Generales y Clínicas
+    window.toggleFace = function(face) {
+      if (!selectedTooth) return;
+      if (!clinicalRecords[selectedTooth]) clinicalRecords[selectedTooth] = { faces: {}, status: currentClinicalState };
+      if (!clinicalRecords[selectedTooth].faces) clinicalRecords[selectedTooth].faces = {};
+      
+      if (clinicalRecords[selectedTooth].faces[face] === currentClinicalState) {
+        delete clinicalRecords[selectedTooth].faces[face];
+      } else {
+        clinicalRecords[selectedTooth].faces[face] = currentClinicalState;
+      }
+      updateUIState();
+      renderAllLayers();
+      calculateBudget();
+    };
+
+    // Macros — secuencias clínicas comunes en un solo click. Cada una
+    // toca campos DISTINTOS entre sí a propósito: general, surgery,
+    // canales y material son slots separados en clinicalRecords, así
+    // que no se pisan entre ellos. Lo que SÍ hay que cuidar es no
+    // combinar dos valores dentro del MISMO campo (ej. no se puede
+    // tener corona Y ausente a la vez en 'general' — son mutuamente
+    // excluyentes por diseño), así que cada macro está armada
+    // respetando esa regla.
+    window.applyMacro = function(nombre) {
+      if (!selectedTooth) { alert('Selecciona una pieza antes de aplicar una macro.'); return; }
+      if (!clinicalRecords[selectedTooth]) clinicalRecords[selectedTooth] = {};
+      const rec = clinicalRecords[selectedTooth];
+
+      if (nombre === 'endo_perno_corona') {
+        const tType = getToothType(selectedTooth);
+        rec.canales = rec.canales || {};
+        if (tType === 'molar_sup') { rec.canales.mv = true; rec.canales.dv = true; rec.canales.p = true; }
+        else if (tType === 'molar_inf') { rec.canales.mesial = true; rec.canales.distal = true; }
+        else { rec.canales.unico = true; }
+        rec.endo_obturacion = 'obturado';
+        rec.surgery = 'perno';
+        rec.general = 'corona';
+      } else if (nombre === 'exodoncia_implante') {
+        rec.surgery = 'exodoncia';
+        rec.general = 'implante';
+      } else if (nombre === 'corona_zirconia') {
+        rec.general = 'corona';
+        rec.material = 'zirconia';
+      }
+
+      rec.status = currentClinicalState;
+      updateUIState();
+      renderAllLayers();
+      calculateBudget();
+    };
+
+    window.setGeneralCondition = function(t) {
+      if (!selectedTooth) return;
+      if (!clinicalRecords[selectedTooth]) clinicalRecords[selectedTooth] = {};
+      clinicalRecords[selectedTooth].general = (clinicalRecords[selectedTooth].general === t) ? null : t;
+      clinicalRecords[selectedTooth].status = currentClinicalState;
+      updateUIState();
+      renderAllLayers();
+      calculateBudget();
+    };
+
+    // Borra TODO lo marcado en Odontología General para la pieza
+    // seleccionada (caras + condición general) de una sola vez —
+    // toggleFace/setGeneralCondition ya permiten deshacer un click
+    // puntual repitiéndolo, pero eso exige recordar exactamente qué
+    // se tocó. Esto es el botón de "me equivoqué, empecemos de nuevo
+    // con esta pieza".
+    window.clearGeneralRecord = function() {
+      if (!selectedTooth) return;
+      if (!clinicalRecords[selectedTooth]) return;
+      if (!confirm(`¿Borrar todo lo marcado en la pieza ${selectedTooth} (Odontología General)?`)) return;
+      delete clinicalRecords[selectedTooth];
+      updateUIState();
+      renderAllLayers();
+      calculateBudget();
+    };
+
+    window.setSurgCondition = function(t) {
+      if (!selectedTooth) return;
+      if (!clinicalRecords[selectedTooth]) clinicalRecords[selectedTooth] = {};
+      clinicalRecords[selectedTooth].surgery = (clinicalRecords[selectedTooth].surgery === t) ? null : t;
+      clinicalRecords[selectedTooth].status = currentClinicalState;
+      updateUIState();
+      renderAllLayers();
+      calculateBudget();
+    };
+
+    // Endodoncia Avanzada — qué raíces/conductos tiene un diente
+    // depende de su anatomía. Simplificación clínica deliberada: la
+    // diferenciación por raíz (MV/DV/P vs Mesial/Distal) solo aplica
+    // a molares permanentes — premolares y anteriores casi siempre
+    // son uniradiculares, así que van con "Conducto Único". Los
+    // molares deciduos (cuadrante 5-8) también caen en "Único" acá:
+    // su endodoncia (pulpotomía/pulpectomía) ya se registra aparte
+    // en el panel de Odontopediatría, no se duplica acá.
+    function getToothType(fdi) {
+      const cuadrante = Math.floor(fdi / 10);
+      const posicion = fdi % 10;
+      const esSuperior = [1, 2, 5, 6].includes(cuadrante);
+      const esPermanente = cuadrante >= 1 && cuadrante <= 4;
+      if (esPermanente && posicion >= 6) return esSuperior ? 'molar_sup' : 'molar_inf';
+      return 'unico';
+    }
+
+    window.toggleCanal = function(canal) {
+      if (!selectedTooth) return;
+      if (!clinicalRecords[selectedTooth]) clinicalRecords[selectedTooth] = {};
+      if (!clinicalRecords[selectedTooth].canales) clinicalRecords[selectedTooth].canales = {};
+      clinicalRecords[selectedTooth].canales[canal] = !clinicalRecords[selectedTooth].canales[canal];
+      clinicalRecords[selectedTooth].status = currentClinicalState;
+      updateUIState();
+      renderAllLayers();
+      calculateBudget();
+    };
+
+    window.cycleObturacion = function() {
+      if (!selectedTooth) return;
+      if (!clinicalRecords[selectedTooth]) clinicalRecords[selectedTooth] = {};
+      const orden = ['sin_preparar', 'preparado', 'obturado'];
+      const actual = clinicalRecords[selectedTooth].endo_obturacion || 'sin_preparar';
+      const idx = orden.indexOf(actual);
+      clinicalRecords[selectedTooth].endo_obturacion = orden[(idx + 1) % orden.length];
+      updateUIState();
+      renderAllLayers();
+      calculateBudget();
+    };
+
+    // Borra SOLO lo de Endodoncia Avanzada (canales + obturación) para
+    // la pieza seleccionada — no toca corona/implante/ausente ni
+    // ninguna otra especialidad de esa misma pieza, mismo criterio
+    // que clearGeneralRecord.
+    window.clearEndoRecord = function() {
+      if (!selectedTooth) return;
+      const rec = clinicalRecords[selectedTooth];
+      if (!rec || (!rec.canales && !rec.endo_obturacion)) return;
+      if (!confirm(`¿Borrar la Endodoncia Avanzada de la pieza ${selectedTooth} (conductos + obturación)?`)) return;
+      delete rec.canales;
+      delete rec.endo_obturacion;
+      updateUIState();
+      renderAllLayers();
+      calculateBudget();
+    };
+
+    // Las siguientes 6 son deliberadamente cortas: updateUIState() ya
+    // lee estos campos directo de los datos en cada refresh (líneas
+    // 1912-1932 aprox.), así que borrar el dato y llamar a
+    // updateUIState()+renderAllLayers()+calculateBudget() alcanza —
+    // no hace falta tocar ningún botón a mano, a diferencia de
+    // Periodoncia más abajo.
+
+    window.clearSurgeryRecord = function() {
+      if (!selectedTooth) return;
+      const rec = clinicalRecords[selectedTooth];
+      if (!rec || !rec.surgery) return;
+      if (!confirm(`¿Borrar la Cirugía marcada en la pieza ${selectedTooth}?`)) return;
+      delete rec.surgery;
+      updateUIState(); renderAllLayers(); calculateBudget();
+    };
+
+    window.clearRestorationRecord = function() {
+      if (!selectedTooth) return;
+      const rec = clinicalRecords[selectedTooth];
+      if (!rec || !rec.restoration) return;
+      if (!confirm(`¿Borrar la incrustación (Inlay/Onlay/Overlay/Carilla) de la pieza ${selectedTooth}?`)) return;
+      delete rec.restoration;
+      updateUIState(); renderAllLayers(); calculateBudget();
+    };
+
+    window.clearMalpositionRecord = function() {
+      if (!selectedTooth) return;
+      const rec = clinicalRecords[selectedTooth];
+      if (!rec || !rec.malposition) return;
+      if (!confirm(`¿Borrar la malposición marcada en la pieza ${selectedTooth}?`)) return;
+      delete rec.malposition;
+      updateUIState(); renderAllLayers(); calculateBudget();
+    };
+
+    window.clearPediatricRecord = function() {
+      if (!selectedTooth) return;
+      const rec = clinicalRecords[selectedTooth];
+      if (!rec || !rec.pediatric) return;
+      if (!confirm(`¿Borrar la condición pediátrica de la pieza ${selectedTooth}?`)) return;
+      delete rec.pediatric;
+      updateUIState(); renderAllLayers(); calculateBudget();
+    };
+
+    window.clearVitaRecord = function() {
+      if (!selectedTooth) return;
+      if (!esteticaRecords[currentArch].shades[selectedTooth]) return;
+      if (!confirm(`¿Borrar el tono VITA de la pieza ${selectedTooth}?`)) return;
+      delete esteticaRecords[currentArch].shades[selectedTooth];
+      updateUIState(); renderAllLayers();
+    };
+
+    window.clearFacetRecord = function() {
+      if (!selectedTooth) return;
+      if (!occlusionRecords[currentArch].facets[selectedTooth]) return;
+      if (!confirm(`¿Borrar la faceta de desgaste de la pieza ${selectedTooth}?`)) return;
+      delete occlusionRecords[currentArch].facets[selectedTooth];
+      updateUIState(); renderAllLayers(); calculateBudget();
+    };
+
+    // Periodoncia SÍ necesita reset manual de etiquetas: a diferencia
+    // de los otros paneles, sus números (PS/REC) se escriben directo
+    // al DOM dentro de cycleDepth/cycleRecession, no dentro de
+    // updateUIState() — así que si no los toco acá quedan mostrando
+    // el valor viejo en pantalla aunque el dato ya se haya borrado.
+    window.clearPerioRecord = function() {
+      if (!selectedTooth) return;
+      if (!perioRecords[selectedTooth]) return;
+      if (!confirm(`¿Borrar el registro periodontal completo de la pieza ${selectedTooth}?`)) return;
+      delete perioRecords[selectedTooth];
+      ['mv', 'v', 'dv', 'ml', 'l', 'dl'].forEach(site => {
+        document.getElementById(`lbl-perio-${site}`).innerText = '2mm';
+        document.getElementById(`lbl-rec-${site}`).innerText = '0mm';
+        document.getElementById(`btn-bop-${site}`)?.classList.remove('active-bop');
+      });
+      document.getElementById('lbl-mov-val').innerText = 'G0';
+      document.getElementById('lbl-furca-val').innerText = 'F0';
+      renderPerioMarkers();
+    };
+
+    // ATM — evaluación rápida bilateral, no depende de selectedTooth
+    window.toggleATM = function(campo) {
+      atmRecords[campo] = !atmRecords[campo];
+      document.getElementById(`btn-atm-${campo.replace('_', '-')}`)?.classList.toggle('active', atmRecords[campo]);
+    };
+
+    window.cycleATMDeviation = function() {
+      const orden = [null, 'izquierda', 'derecha'];
+      const idx = orden.indexOf(atmRecords.desviacion);
+      atmRecords.desviacion = orden[(idx + 1) % orden.length];
+      const d = atmRecords.desviacion;
+      document.getElementById('lbl-atm-desviacion').innerText = d === 'izquierda' ? 'Hacia Izquierda' : d === 'derecha' ? 'Hacia Derecha' : 'Ninguna';
+    };
+
+    window.setRestorationCondition = function(t) {
+      if (!selectedTooth) return;
+      if (!clinicalRecords[selectedTooth]) clinicalRecords[selectedTooth] = {};
+      clinicalRecords[selectedTooth].restoration = (clinicalRecords[selectedTooth].restoration === t) ? null : t;
+      clinicalRecords[selectedTooth].status = currentClinicalState;
+      updateUIState();
+      renderAllLayers();
+      calculateBudget();
+    };
+
+    // Material para prótesis fija (corona/inlay/onlay/overlay/carilla)
+    // por diente. No afecta el presupuesto ni la marca 3D — es
+    // información puramente para la orden de laboratorio, así que
+    // deliberadamente no pasa por updateUIState()/renderAllLayers().
+    const MATERIALES_FIJA = [null, 'zirconia', 'emax', 'pfm', 'resina'];
+    const MATERIALES_FIJA_LBL = { zirconia: 'Zirconia', emax: 'Disilicato de Litio (E.max)', pfm: 'Metal-Cerámica (PFM)', resina: 'Resina/Composite' };
+    window.cycleMaterial = function() {
+      if (!selectedTooth) return;
+      if (!clinicalRecords[selectedTooth]) clinicalRecords[selectedTooth] = {};
+      const cur = clinicalRecords[selectedTooth].material || null;
+      const idx = MATERIALES_FIJA.indexOf(cur);
+      const next = MATERIALES_FIJA[(idx + 1) % MATERIALES_FIJA.length];
+      clinicalRecords[selectedTooth].material = next;
+      document.getElementById('lbl-material-fija').innerText = next ? MATERIALES_FIJA_LBL[next] : 'Sin especificar';
+    };
+
+    window.setFacetCondition = function(gr) {
+      if (!selectedTooth) return;
+      occlusionRecords[currentArch].facets[selectedTooth] = (occlusionRecords[currentArch].facets[selectedTooth] === gr) ? 0 : gr;
+      updateUIState();
+      renderAllLayers();
+      calculateBudget();
+    };
+
+    window.toggleSplintArch = function() {
+      occlusionRecords[currentArch].splint = !occlusionRecords[currentArch].splint;
+      updateUIState();
+      renderAllLayers();
+      calculateBudget();
+    };
+
+    window.setTraumaCondition = function(t) {
+      if (!selectedTooth) return;
+      if (!clinicalRecords[selectedTooth]) clinicalRecords[selectedTooth] = {};
+      clinicalRecords[selectedTooth].trauma = (clinicalRecords[selectedTooth].trauma === t) ? null : t;
+      clinicalRecords[selectedTooth].status = currentClinicalState;
+      updateUIState();
+      renderAllLayers();
+      calculateBudget();
+    };
+
+    window.setMalpositionCondition = function(m) {
+      if (!selectedTooth) return;
+      if (!clinicalRecords[selectedTooth]) clinicalRecords[selectedTooth] = {};
+      clinicalRecords[selectedTooth].malposition = (clinicalRecords[selectedTooth].malposition === m) ? null : m;
+      clinicalRecords[selectedTooth].status = currentClinicalState;
+      updateUIState();
+      renderAllLayers();
+      calculateBudget();
+    };
+
+    window.setVitaShade = function(sh) {
+      if (!selectedTooth) return;
+      esteticaRecords[currentArch].shades[selectedTooth] = (esteticaRecords[currentArch].shades[selectedTooth] === sh) ? null : sh;
+      updateUIState();
+      renderAllLayers();
+    };
+
+    window.toggleBleachingArch = function() {
+      esteticaRecords[currentArch].bleaching = !esteticaRecords[currentArch].bleaching;
+      updateUIState();
+      renderAllLayers();
+      calculateBudget();
+    };
+
+    window.setPediatricCondition = function(p) {
+      if (!selectedTooth) return;
+      if (!clinicalRecords[selectedTooth]) clinicalRecords[selectedTooth] = {};
+      clinicalRecords[selectedTooth].pediatric = (clinicalRecords[selectedTooth].pediatric === p) ? null : p;
+      clinicalRecords[selectedTooth].status = currentClinicalState;
+      updateUIState();
+      renderAllLayers();
+      calculateBudget();
+    };
+
+    window.setOrthoPiece = function(b) {
+      if (!selectedTooth) return;
+      orthoRecords[currentArch].brackets[selectedTooth] = (orthoRecords[currentArch].brackets[selectedTooth] === b) ? null : b;
+      updateUIState();
+      renderAllLayers();
+      calculateBudget();
+    };
+
+    window.setWireType = function(wireType) {
+      orthoRecords[currentArch].wire = wireType;
+      updateUIState();
+      renderAllLayers();
+      calculateBudget();
+    };
+
+    // Ortopedia Funcional — aparatos removibles para guiar el
+    // crecimiento maxilar en pacientes en desarrollo, distinto de la
+    // aparatología fija (brackets) de arriba. Es por arcada, no por
+    // diente — el aparato actúa sobre la relación maxilar completa.
+    const APARATOS_FUNCIONALES = [null, 'Bionator', 'Frankel', 'Twin Block', 'Activador Andresen'];
+    window.cycleAparatoFuncional = function() {
+      const cur = orthoRecords[currentArch].aparatoFuncional;
+      const idx = APARATOS_FUNCIONALES.indexOf(cur);
+      const next = APARATOS_FUNCIONALES[(idx + 1) % APARATOS_FUNCIONALES.length];
+      orthoRecords[currentArch].aparatoFuncional = next;
+      document.getElementById('lbl-aparato-funcional').innerText = next || 'Ninguno';
+      calculateBudget();
+    };
+
+    // Fase de retención — después de retirar la aparatología activa.
+    // 'retirado' se factura distinto (o no se factura) porque ya no
+    // es un tratamiento en curso, es solo el registro de que se sacó.
+    const RETENEDORES = [null, 'Hawley', 'Essix', 'Fijo Lingual', 'retirado'];
+    const RETENEDORES_LBL = { Hawley: 'Hawley', Essix: 'Essix', 'Fijo Lingual': 'Fijo Lingual', retirado: 'Retirado' };
+    window.cycleRetenedor = function() {
+      const cur = orthoRecords[currentArch].retenedor;
+      const idx = RETENEDORES.indexOf(cur);
+      const next = RETENEDORES[(idx + 1) % RETENEDORES.length];
+      orthoRecords[currentArch].retenedor = next;
+      document.getElementById('lbl-retenedor').innerText = next ? RETENEDORES_LBL[next] : 'Ninguno';
+      calculateBudget();
+    };
+
+    window.applyOrthoToFullArch = function(type) {
+      getAnatomicalOrder().forEach(f => orthoRecords[currentArch].brackets[f] = type);
+      if (type) orthoRecords[currentArch].wire = 'niti';
+      else orthoRecords[currentArch].wire = 'none';
+      updateUIState();
+      renderAllLayers();
+      calculateBudget();
+    };
+
+    window.setArchRemovableType = function(t) {
+      removableRecords[currentArch].type = t;
+      updateUIState();
+      renderAllLayers();
+      calculateBudget();
+    };
+
+    window.toggleRemovableRetainer = function() {
+      if (!selectedTooth) return;
+      const rets = removableRecords[currentArch].retainers;
+      const idx = rets.indexOf(selectedTooth);
+      if (idx > -1) rets.splice(idx, 1); else rets.push(selectedTooth);
+      updateUIState();
+      renderAllLayers();
+      calculateBudget();
+    };
+
+    // Material para prótesis removible — cíclico, igual criterio que
+    // la obturación apical de endodoncia: pocas opciones mutuamente
+    // excluyentes, un botón que rota es más rápido que 4 botones más
+    // compitiendo por espacio en un panel que ya tiene varios.
+    const MATERIALES_REMOVIBLE = [null, 'cromo_cobalto', 'acrilico', 'titanio'];
+    const MATERIALES_REMOVIBLE_LBL = { cromo_cobalto: 'Cromo-Cobalto', acrilico: 'Acrílico', titanio: 'Titanio' };
+    window.cycleMaterialRemovible = function() {
+      const cur = removableRecords[currentArch].material;
+      const idx = MATERIALES_REMOVIBLE.indexOf(cur);
+      const next = MATERIALES_REMOVIBLE[(idx + 1) % MATERIALES_REMOVIBLE.length];
+      removableRecords[currentArch].material = next;
+      document.getElementById('lbl-material-removible').innerText = next ? MATERIALES_REMOVIBLE_LBL[next] : 'Sin especificar';
+    };
+
+    // Clasificación de Kennedy — sistema estándar para describir
+    // arcadas parcialmente edéntulas antes de diseñar una prótesis
+    // parcial removible. Clase I-IV, sin subclases acá (mantenerlo
+    // simple; el laboratorio puede pedir el detalle de subclase por
+    // separado si lo necesita).
+    const KENNEDY_CLASES = [null, 'I', 'II', 'III', 'IV'];
+    window.cycleKennedy = function() {
+      const cur = removableRecords[currentArch].kennedy;
+      const idx = KENNEDY_CLASES.indexOf(cur);
+      const next = KENNEDY_CLASES[(idx + 1) % KENNEDY_CLASES.length];
+      removableRecords[currentArch].kennedy = next;
+      document.getElementById('lbl-kennedy').innerText = next ? `Clase ${next}` : 'Sin clasificar';
+    };
+
+    window.handleBridgeButton = function() {
+      if (!selectedTooth) { alert('Selecciona una pieza pilar.'); return; }
+      if (!bridgeStartTooth) {
+        bridgeStartTooth = selectedTooth;
+        document.getElementById('btn-bridge-action').innerText = `🔗 Unir con Pz ${selectedTooth}`;
+      } else {
+        if (bridgeStartTooth !== selectedTooth) {
+          bridges.push({ start: bridgeStartTooth, end: selectedTooth, arch: currentArch, status: currentClinicalState });
+          bridgeStartTooth = null;
+          document.getElementById('btn-bridge-action').innerText = '🌉 Trazar Puente desde Pieza';
+          renderAllLayers();
+          calculateBudget();
+        }
+      }
+    };
+
+    function updateUIState() {
+      ['v', 'm', 'o', 'd', 'l'].forEach(f => {
+        const el = document.getElementById(`face-${f}`);
+        if (el) el.className = 'cross-cell';
+      });
+
+      if (selectedTooth && clinicalRecords[selectedTooth]?.faces) {
+        for (const [face, state] of Object.entries(clinicalRecords[selectedTooth].faces)) {
+          document.getElementById(`face-${face.toLowerCase()}`)?.classList.add(`state-${state}`);
+        }
+      }
+
+      if (selectedTooth && perioRecords[selectedTooth]) {
+        const pRec = perioRecords[selectedTooth];
+        ['mv', 'v', 'dv', 'ml', 'l', 'dl'].forEach(s => {
+          const depth = pRec.depths?.[s] || 2;
+          const rec = pRec.recession?.[s] || 0;
+          const hasBop = pRec.bop?.[s] || false;
+          const lbl = document.getElementById(`lbl-perio-${s}`);
+          const lblRec = document.getElementById(`lbl-rec-${s}`);
+          const bopBtn = document.getElementById(`btn-bop-${s}`);
+          if (lbl) lbl.innerText = `${depth}mm`;
+          if (lblRec) lblRec.innerText = `${rec}mm`;
+          if (bopBtn) bopBtn.classList.toggle('active-bop', hasBop);
+        });
+        document.getElementById('lbl-mov-val').innerText = `G${pRec.movilidad || 0}`;
+        document.getElementById('lbl-furca-val').innerText = `F${pRec.furca || 0}`;
+      } else {
+        ['mv', 'v', 'dv', 'ml', 'l', 'dl'].forEach(s => {
+          const lbl = document.getElementById(`lbl-perio-${s}`);
+          const lblRec = document.getElementById(`lbl-rec-${s}`);
+          const bopBtn = document.getElementById(`btn-bop-${s}`);
+          if (lbl) lbl.innerText = `2mm`;
+          if (lblRec) lblRec.innerText = `0mm`;
+          if (bopBtn) bopBtn.classList.remove('active-bop');
+        });
+        document.getElementById('lbl-mov-val').innerText = `G0`;
+        document.getElementById('lbl-furca-val').innerText = `F0`;
+      }
+
+      const cur = selectedTooth ? clinicalRecords[selectedTooth] : null;
+      ['corona', 'endodoncia', 'implante', 'ausente', 'sellante'].forEach(b => {
+        document.getElementById(`btn-${b}`)?.classList.toggle('active', cur?.general === b);
+      });
+      ['exodoncia', 'resto', 'impactado', 'lesion', 'perno', 'bloque', 'seno', 'rog', 'gingivectomia', 'colgajo', 'rtg_perio', 'alargamiento'].forEach(b => {
+        document.getElementById(`btn-surg-${b}`)?.classList.toggle('active', cur?.surgery === b);
+      });
+
+      // Endodoncia Avanzada — qué sección de conductos mostrar depende
+      // de la anatomía del diente seleccionado (molar sup/inf tienen
+      // raíces distintas; premolares y anteriores van con conducto
+      // único). getToothType() decide según el FDI.
+      if (selectedTooth) {
+        const tType = getToothType(selectedTooth);
+        document.getElementById('endo-molar-sup').style.display = tType === 'molar_sup' ? 'grid' : 'none';
+        document.getElementById('endo-molar-sup-lbl').style.display = tType === 'molar_sup' ? 'block' : 'none';
+        document.getElementById('endo-molar-inf').style.display = tType === 'molar_inf' ? 'grid' : 'none';
+        document.getElementById('endo-molar-inf-lbl').style.display = tType === 'molar_inf' ? 'block' : 'none';
+        document.getElementById('endo-unico-lbl').style.display = tType === 'unico' ? 'block' : 'none';
+        document.getElementById('btn-canal-unico').style.display = tType === 'unico' ? 'block' : 'none';
+
+        const canales = cur?.canales || {};
+        ['mv', 'dv', 'p', 'mesial', 'distal', 'unico'].forEach(c => {
+          document.getElementById(`btn-canal-${c}`)?.classList.toggle('active', !!canales[c]);
+        });
+        const obtLabels = { sin_preparar: 'Sin Preparar', preparado: 'Conductometría Lista', obturado: 'Obturado' };
+        document.getElementById('lbl-endo-obturacion').innerText = obtLabels[cur?.endo_obturacion || 'sin_preparar'];
+      }
+
+      ['inlay', 'onlay', 'overlay', 'carilla'].forEach(b => {
+        document.getElementById(`btn-${b}`)?.classList.toggle('active', cur?.restoration === b);
+      });
+      ['incompleta', 'pulpar', 'radicular'].forEach(b => {
+        document.getElementById(`btn-trauma-${b}`)?.classList.toggle('active', cur?.trauma === b);
+      });
+      ['diastema', 'giro', 'extrusion', 'intrusion', 'inclinacion'].forEach(b => {
+        document.getElementById(`btn-mal-${b}`)?.classList.toggle('active', cur?.malposition === b);
+      });
+      ['sellante', 'fluor', 'pulpotomia', 'pulpectomia', 'mantenedor'].forEach(b => {
+        document.getElementById(`btn-ped-${b}`)?.classList.toggle('active', cur?.pediatric === b);
+      });
+      ['metal', 'zafiro', 'tubo'].forEach(b => {
+        document.getElementById(`btn-brk-${b}`)?.classList.toggle('active', orthoRecords[currentArch].brackets[selectedTooth] === b);
+      });
+      ['BL1', 'A1', 'A2', 'A3', 'B1', 'B2', 'C1', 'D2'].forEach(s => {
+        document.getElementById(`vita-${s}`)?.classList.toggle('active', esteticaRecords[currentArch].shades[selectedTooth] === s);
+      });
+      [1, 2, 3].forEach(g => {
+        document.getElementById(`btn-occ-f${g}`)?.classList.toggle('active', occlusionRecords[currentArch].facets[selectedTooth] === g);
+      });
+
+      ['none', 'niti', 'estetico'].forEach(w => {
+        document.getElementById(`wire-${w}`)?.classList.toggle('active', orthoRecords[currentArch].wire === w);
+      });
+
+      document.getElementById('btn-splint-arch')?.classList.toggle('active', occlusionRecords[currentArch].splint);
+      document.getElementById('btn-bleach-arch')?.classList.toggle('active', esteticaRecords[currentArch].bleaching);
+      document.getElementById('btn-fluor-arch-btn')?.classList.toggle('active', pediatricRecords[currentArch].fluorArch);
+      document.getElementById('btn-rem-gancho')?.classList.toggle('active', selectedTooth ? removableRecords[currentArch].retainers.includes(selectedTooth) : false);
+
+      // Material y Kennedy son solo para la orden de laboratorio —
+      // no afectan presupuesto ni marca 3D, pero igual necesitan
+      // refrescarse al cambiar de diente/arcada como cualquier otro
+      // campo, si no quedan mostrando el valor de la pieza anterior.
+      document.getElementById('lbl-material-fija').innerText = cur?.material ? MATERIALES_FIJA_LBL[cur.material] : 'Sin especificar';
+      document.getElementById('lbl-material-removible').innerText = removableRecords[currentArch].material ? MATERIALES_REMOVIBLE_LBL[removableRecords[currentArch].material] : 'Sin especificar';
+      document.getElementById('lbl-kennedy').innerText = removableRecords[currentArch].kennedy ? `Clase ${removableRecords[currentArch].kennedy}` : 'Sin clasificar';
+    }
+
+    // Modal Consentimiento y Firma Digital
+    const sigCanvas = document.getElementById('signature-pad');
+    const sigCtx = sigCanvas.getContext('2d');
+    let isDrawing = false, hasSignature = false;
+
+    function initSignaturePad() {
+      sigCtx.strokeStyle = '#0f172a';
+      sigCtx.lineWidth = 2.5;
+      sigCtx.lineCap = 'round';
+
+      function getPos(e) {
+        const rect = sigCanvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return { x: clientX - rect.left, y: clientY - rect.top };
+      }
+      function start(e) { isDrawing = true; hasSignature = true; const p = getPos(e); sigCtx.beginPath(); sigCtx.moveTo(p.x, p.y); e.preventDefault(); }
+      function move(e) { if (!isDrawing) return; const p = getPos(e); sigCtx.lineTo(p.x, p.y); sigCtx.stroke(); e.preventDefault(); }
+      function stop() { isDrawing = false; }
+
+      sigCanvas.addEventListener('mousedown', start);
+      sigCanvas.addEventListener('mousemove', move);
+      window.addEventListener('mouseup', stop);
+      sigCanvas.addEventListener('touchstart', start, { passive: false });
+      sigCanvas.addEventListener('touchmove', move, { passive: false });
+      window.addEventListener('touchend', stop);
+    }
+    initSignaturePad();
+
+    window.clearSignature = function() { sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height); hasSignature = false; };
+    window.openConsentModal = function(type) { consentActionType = type; document.getElementById('consent-modal').style.display = 'flex'; };
+    window.closeConsentModal = function() { document.getElementById('consent-modal').style.display = 'none'; };
+
+    let tipoRegistroLab = 'impresion';
+    window.openLabOrderModal = function() { document.getElementById('lab-order-modal').style.display = 'flex'; };
+    window.closeLabOrderModal = function() { document.getElementById('lab-order-modal').style.display = 'none'; };
+    window.setTipoRegistro = function(t) {
+      tipoRegistroLab = t;
+      document.getElementById('btn-registro-impresion').classList.toggle('active', t === 'impresion');
+      document.getElementById('btn-registro-escaneo').classList.toggle('active', t === 'escaneo');
+    };
+
+    window.submitConsent = function(type) {
+      const pName = document.getElementById('pdf-patient-name').value.trim() || 'Paciente General';
+      const pId = document.getElementById('pdf-patient-id').value.trim() || 'Sin Especificar';
+      const pPhone = document.getElementById('pdf-patient-phone').value.trim();
+      const dNameRaw = document.getElementById('pdf-doctor-name').value.trim() || 'Odontólogo Tratante';
+      const dCop = document.getElementById('pdf-doctor-cop').value.trim();
+      const dName = dCop ? `${dNameRaw} — COP ${dCop}` : dNameRaw;
+      const sigData = hasSignature ? sigCanvas.toDataURL('image/png') : null;
+
+      if (type === 'ghl' && !pPhone) {
+        alert('Ingresa el teléfono del paciente antes de enviar a GHL.');
+        return;
+      }
+
+      closeConsentModal();
+
+      if (type === 'pdf') generatePDF(pName, pId, dName, sigData);
+      else syncToGHL(pName, pId, dName, sigData, pPhone);
+    };
+
+    function buildClinicalPDF(pName, pId, dName, sigImg) {
+      renderer.render(scene, camera);
+      const img3D = renderer.domElement.toDataURL('image/png', 1.0);
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('p', 'mm', 'a4');
+
+      doc.setFillColor(190, 18, 60);
+      doc.rect(0, 0, 210, 30, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.text('INFORME CLÍNICO & CONSENTIMIENTO INFORMADO 3D', 14, 14);
+      doc.setFontSize(13);
+      doc.text('FASSIARA', 196, 14, { align: 'right' });
+      doc.setFontSize(8.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(254, 228, 230);
+      doc.text(`Fecha: ${new Date().toLocaleDateString('es-PE')} | Dentición: ${currentMode.toUpperCase()} | Arcada: ${currentArch.toUpperCase()}`, 14, 22);
+      doc.text('Clínica Odontológica y Estética · Huánuco, Perú', 196, 22, { align: 'right' });
+
+      doc.setFillColor(241, 245, 249);
+      doc.rect(14, 34, 182, 16, 'F');
+      doc.setTextColor(30, 41, 59);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Paciente: ${pName}  |  DNI: ${pId}  |  Tratante: ${dName}`, 18, 44);
+
+      doc.addImage(img3D, 'PNG', 14, 54, 182, 80);
+
+      const budget = calculateBudget();
+      const rows = budget.items.map(i => [i.item, `S/ ${i.price.toLocaleString('es-PE')}`]);
+      if (rows.length === 0) rows.push(['Evaluación General', 'S/ 0']);
+
+      doc.autoTable({
+        startY: 138,
+        head: [['Tratamiento Planificado', 'Arancel']],
+        body: rows,
+        foot: [['TOTAL PLAN DE TRATAMIENTO', `S/ ${budget.total.toLocaleString('es-PE')}`]],
+        theme: 'striped',
+        headStyles: { fillColor: [190, 18, 60], fontSize: 8.5 },
+        styles: { fontSize: 8, cellPadding: 2 }
+      });
+
+      const finalY = doc.lastAutoTable.finalY + 6;
+      if (finalY < 250) {
+        if (sigImg) doc.addImage(sigImg, 'PNG', 24, finalY + 2, 50, 16);
+        doc.setFontSize(7.5);
+        doc.setTextColor(100, 116, 139);
+        doc.text('Firma de Conformidad del Paciente / Tutor', 24, finalY + 22);
+      }
+
+      // Página 2 — nomenclatura estándar de odontograma (siglas C/R/Co/
+      // Imp/Endo/EX/RE/P), a pedido explícito de un doctor. Va en el
+      // PDF y no en el visor 3D a propósito: acá no hay color de
+      // posición 3D comunicando el hallazgo, así que las siglas de
+      // papel sí aportan — en el visor en vivo esa función ya la
+      // cumplen el color y la posición del marcador.
+      //
+      // Clase de Black — se calcula sola a partir de qué caras están
+      // marcadas en el diente, no es una elección manual nueva:
+      // I = solo oclusal en posterior, II = proximal (± oclusal) en
+      // posterior, III = proximal en anterior. La Clase V (cervical)
+      // no es representable con las 5 caras V/M/O/D/L actuales — si
+      // hace falta, sería un octavo botón de cara a futuro, no algo
+      // que se pueda inferir. La Clase IV (proximal+incisal en
+      // anterior) tampoco se distingue de la III con los datos de
+      // hoy — se reporta como III y el doctor ajusta a IV a simple
+      // vista si corresponde.
+      function esAnteriorBlack(fdi) {
+        const posicion = fdi % 10;
+        return posicion >= 1 && posicion <= 3;
+      }
+      function calcularClaseBlack(fdi, facesRequeridas) {
+        if (!facesRequeridas || facesRequeridas.length === 0) return '';
+        const tieneO = facesRequeridas.includes('O');
+        const tieneProximal = facesRequeridas.includes('M') || facesRequeridas.includes('D');
+        if (esAnteriorBlack(fdi)) return tieneProximal ? 'III' : '';
+        if (tieneProximal) return 'II';
+        if (tieneO) return 'I';
+        return '';
+      }
+
+      const siglasFila = (fdi, texto, estado, clase) => [fdi, texto, estado, clase || ''];
+      const filasSiglas = [];
+      for (const [fdi, rec] of Object.entries(clinicalRecords)) {
+        if (rec.faces) {
+          const facesRequeridas = Object.entries(rec.faces).filter(([, e]) => e === 'diagnosticado').map(([f]) => f);
+          const claseBlack = calcularClaseBlack(parseInt(fdi), facesRequeridas);
+          for (const [face, estado] of Object.entries(rec.faces)) {
+            const sigla = estado === 'diagnosticado' ? 'C' : 'R';
+            const estadoTxt = estado === 'diagnosticado' ? 'Requerido' : (estado === 'existente' ? 'Previo' : 'Realizado');
+            filasSiglas.push(siglasFila(fdi, `${sigla}-${face}`, estadoTxt, estado === 'diagnosticado' ? claseBlack : ''));
+          }
+        }
+        if (rec.general === 'corona') filasSiglas.push(siglasFila(fdi, 'Co', rec.status === 'diagnosticado' ? 'Requerido' : (rec.status === 'existente' ? 'Previo' : 'Realizado')));
+        if (rec.general === 'implante') filasSiglas.push(siglasFila(fdi, 'Imp', rec.status === 'diagnosticado' ? 'Requerido' : (rec.status === 'existente' ? 'Previo' : 'Realizado')));
+        if (rec.general === 'ausente') filasSiglas.push(siglasFila(fdi, 'X', 'Ausente'));
+        if (rec.general === 'sellante') filasSiglas.push(siglasFila(fdi, 'Sel', rec.status === 'diagnosticado' ? 'Requerido' : (rec.status === 'existente' ? 'Previo' : 'Realizado')));
+        if (rec.surgery === 'exodoncia') filasSiglas.push(siglasFila(fdi, 'EX', 'Requerido'));
+        if (rec.surgery === 'resto') filasSiglas.push(siglasFila(fdi, 'RE', 'Requerido'));
+        if (['gingivectomia', 'colgajo', 'rtg_perio', 'alargamiento'].includes(rec.surgery)) {
+          const sig = { gingivectomia: 'Gv', colgajo: 'Cg', rtg_perio: 'RTG', alargamiento: 'Al' }[rec.surgery];
+          filasSiglas.push(siglasFila(fdi, sig, rec.status === 'diagnosticado' ? 'Requerido' : 'Realizado'));
+        }
+        if (rec.canales && Object.values(rec.canales).some(v => v)) {
+          const obt = rec.endo_obturacion || 'sin_preparar';
+          filasSiglas.push(siglasFila(fdi, 'Endo', obt === 'obturado' ? 'Realizado' : 'Requerido'));
+        }
+      }
+      bridges.forEach(br => filasSiglas.push(siglasFila(`${br.start}-${br.end}`, 'P', br.status === 'diagnosticado' ? 'Requerido' : (br.status === 'existente' ? 'Previo' : 'Realizado'))));
+      if (registrosGenerales.profilaxis) filasSiglas.push(siglasFila('—', 'Prof', 'Realizado'));
+
+      if (filasSiglas.length > 0) {
+        doc.addPage();
+        doc.setFillColor(190, 18, 60);
+        doc.rect(0, 0, 210, 22, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.text('HALLAZGOS — NOMENCLATURA ESTÁNDAR', 14, 14);
+
+        doc.setTextColor(15, 23, 42);
+        doc.setFontSize(7.5);
+        doc.setFont('helvetica', 'normal');
+        doc.text('C = Caries | R = Restauración | Co = Corona | Imp = Implante | Sel = Sellante | Endo = Endodoncia | EX = Exodoncia indicada | RE = Resto radicular | P = Puente | X = Ausente | Prof = Profilaxis', 14, 27);
+        doc.text('Gv = Gingivectomía | Cg = Cirugía de Colgajo | RTG = Regeneración Tisular Guiada | Al = Alargamiento Coronario | Clase = Clasificación de Black (I-III, calculada automático)', 14, 32);
+
+        doc.autoTable({
+          startY: 38,
+          head: [['Pieza', 'Sigla', 'Estado', 'Clase']],
+          body: filasSiglas,
+          theme: 'striped',
+          headStyles: { fillColor: [190, 18, 60], fontSize: 8.5 },
+          styles: { fontSize: 8, cellPadding: 2.5 },
+          didParseCell: (data) => {
+            if (data.column.index === 2 && data.section === 'body') {
+              const t = data.cell.raw;
+              if (t === 'Requerido') data.cell.styles.textColor = [220, 38, 38];
+              else if (t === 'Previo') data.cell.styles.textColor = [37, 99, 235];
+              else if (t === 'Realizado') data.cell.styles.textColor = [22, 163, 74];
+            }
+          }
+        });
+      }
+
+      return doc;
+    }
+
+    function generatePDF(pName, pId, dName, sigImg) {
+      const doc = buildClinicalPDF(pName, pId, dName, sigImg);
+      doc.save(`HistoriaClinica_${pName.replace(/\s+/g, '_')}.pdf`);
+    }
+
+    // Orden de Laboratorio — junta lo ya marcado en el odontograma
+    // (piezas con corona/incrustación + su material + su tono VITA,
+    // puentes, prótesis removible con material y Kennedy) con los
+    // campos que solo existen para esta orden (laboratorio, fecha de
+    // entrega, tipo de registro, margen, color por tercio, conexión,
+    // notas). No lleva firma capturada: es del odontólogo, se firma
+    // físicamente al entregar la orden, no en pantalla como el
+    // consentimiento del paciente.
+    function generateLabOrderPDF() {
+      const pName = document.getElementById('lab-patient-name').value.trim() || 'Paciente General';
+      const pId = document.getElementById('lab-patient-id').value.trim() || 'Sin Especificar';
+      const dNameRaw = document.getElementById('lab-doctor-name').value.trim() || 'Odontólogo Tratante';
+      const dCop = document.getElementById('lab-doctor-cop').value.trim();
+      const dName = dCop ? `${dNameRaw} — COP ${dCop}` : dNameRaw;
+      const labName = document.getElementById('lab-nombre-laboratorio').value.trim();
+      const fechaEntrega = document.getElementById('lab-fecha-entrega').value;
+      const disenoMargen = document.getElementById('lab-diseno-margen').value.trim();
+      const colorCervical = document.getElementById('lab-color-cervical').value.trim();
+      const colorMedio = document.getElementById('lab-color-medio').value.trim();
+      const colorIncisal = document.getElementById('lab-color-incisal').value.trim();
+      const tipoConexion = document.getElementById('lab-tipo-conexion').value.trim();
+      const notas = document.getElementById('lab-notas').value.trim();
+
+      const getShade = (fdi) => esteticaRecords.inferior.shades[fdi] || esteticaRecords.superior.shades[fdi] || '—';
+
+      const piezasFija = [];
+      for (const [fdi, rec] of Object.entries(clinicalRecords)) {
+        const matLbl = rec.material ? MATERIALES_FIJA_LBL[rec.material] : 'Sin especificar';
+        if (rec.restoration) {
+          const tipoLbl = { inlay: 'Inlay', onlay: 'Onlay', overlay: 'Overlay', carilla: 'Carilla' }[rec.restoration];
+          piezasFija.push([fdi, tipoLbl, matLbl, getShade(fdi)]);
+        } else if (rec.general === 'corona') {
+          piezasFija.push([fdi, 'Corona', matLbl, getShade(fdi)]);
+        }
+      }
+
+      const puentesInfo = bridges.map(b => `Pieza ${b.start} — Pieza ${b.end} (arcada ${b.arch})`);
+
+      const removibleInfo = [];
+      ['inferior', 'superior'].forEach(arch => {
+        const r = removableRecords[arch];
+        if (r.type) {
+          const tipoLbl = { total: 'Total', esqueletica: 'Esquelética', flexible: 'Flexible (Valplast)' }[r.type];
+          const matLbl = r.material ? MATERIALES_REMOVIBLE_LBL[r.material] : 'Sin especificar';
+          const kenLbl = r.kennedy ? `Clase ${r.kennedy}` : 'Sin clasificar';
+          removibleInfo.push(`Arcada ${arch}: ${tipoLbl} — Material: ${matLbl} — Kennedy: ${kenLbl}`);
+        }
+      });
+
+      if (piezasFija.length === 0 && removibleInfo.length === 0 && bridges.length === 0) {
+        alert('No hay ninguna pieza con corona, incrustación, puente o prótesis removible marcada todavía.');
+        return;
+      }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('p', 'mm', 'a4');
+
+      doc.setFillColor(146, 64, 14);
+      doc.rect(0, 0, 210, 30, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.text('ORDEN DE TRABAJO — LABORATORIO DENTAL', 14, 14);
+      doc.setFontSize(13);
+      doc.text('FASSIARA', 196, 14, { align: 'right' });
+      doc.setFontSize(8.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(254, 226, 194);
+      const entregaTxt = fechaEntrega ? ` | Entrega solicitada: ${new Date(fechaEntrega + 'T00:00:00').toLocaleDateString('es-PE')}` : '';
+      doc.text(`Fecha de solicitud: ${new Date().toLocaleDateString('es-PE')}${entregaTxt}`, 14, 22);
+      doc.text('Huánuco, Perú', 196, 22, { align: 'right' });
+
+      doc.setFillColor(241, 245, 249);
+      doc.rect(14, 34, 182, 20, 'F');
+      doc.setTextColor(30, 41, 59);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Paciente: ${pName}  |  DNI: ${pId}`, 18, 42);
+      doc.text(`Odontólogo: ${dName}${labName ? '  |  Laboratorio: ' + labName : ''}`, 18, 50);
+
+      let y = 62;
+      doc.setTextColor(15, 23, 42);
+
+      if (piezasFija.length > 0) {
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Prótesis Fija / Incrustaciones', 14, y);
+        doc.autoTable({
+          startY: y + 3,
+          head: [['Pieza', 'Tipo', 'Material', 'Tono VITA']],
+          body: piezasFija.map(([fdi, tipo, mat, shade]) => [fdi, tipo, mat, shade]),
+          theme: 'striped',
+          headStyles: { fillColor: [180, 83, 9], fontSize: 8.5 },
+          styles: { fontSize: 8, cellPadding: 2 }
+        });
+        y = doc.lastAutoTable.finalY + 8;
+      }
+
+      const addBulletSection = (titulo, items) => {
+        if (items.length === 0) return;
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text(titulo, 14, y);
+        y += 5;
+        doc.setFontSize(8.5);
+        doc.setFont('helvetica', 'normal');
+        items.forEach(i => { doc.text(`• ${i}`, 18, y); y += 5; });
+        y += 3;
+      };
+
+      addBulletSection('Puentes', puentesInfo);
+      addBulletSection('Prótesis Removible', removibleInfo);
+
+      const specs = [];
+      if (disenoMargen) specs.push(`Diseño de margen: ${disenoMargen}`);
+      if (colorCervical || colorMedio || colorIncisal) specs.push(`Color por tercio — Cervical: ${colorCervical || '—'} / Medio: ${colorMedio || '—'} / Incisal-Oclusal: ${colorIncisal || '—'}`);
+      if (tipoConexion) specs.push(`Tipo de conexión: ${tipoConexion}`);
+      specs.push(`Registro utilizado: ${tipoRegistroLab === 'escaneo' ? 'Escaneo digital' : 'Impresión física'}`);
+      addBulletSection('Especificaciones', specs);
+
+      if (notas) {
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Indicaciones Adicionales', 14, y);
+        y += 5;
+        doc.setFontSize(8.5);
+        doc.setFont('helvetica', 'normal');
+        const notasLines = doc.splitTextToSize(notas, 180);
+        doc.text(notasLines, 18, y);
+        y += notasLines.length * 4.5 + 5;
+      }
+
+      if (y < 260) {
+        y += 10;
+        doc.setDrawColor(148, 163, 184);
+        doc.line(24, y, 110, y);
+        doc.setFontSize(7.5);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`Firma y timbre — ${dName}`, 24, y + 5);
+      }
+
+      doc.save(`Orden_Laboratorio_${pName.replace(/\s+/g, '_')}.pdf`);
+      closeLabOrderModal();
+    }
+
+    // Reemplazar con la URL y el secreto reales (los mismos del .env
+    // del servicio odontograma_webhook.py en el EC2) antes de publicar.
+    // ⚠️ Esto corre en el navegador del paciente — el "secreto" es
+    // visible con Ver código fuente, no es autenticación real, solo
+    // filtra tráfico accidental.
+    const ODONTOGRAMA_WEBHOOK_URL = ''; // pendiente: webhook propio de Fassiara
+    const ODONTOGRAMA_WEBHOOK_SECRET = '';
+
+    async function syncToGHL(pName, pId, dName, sigImg, pPhone) {
+      if (!ODONTOGRAMA_WEBHOOK_URL) { alert('La sincronización con GoHighLevel todavía no está configurada. No se envió ningún dato.'); return; }
+      const budget = calculateBudget();
+      const statusMsg = (t) => { const el = document.getElementById('status'); if (el) el.innerText = t; };
+      statusMsg('Generando consentimiento y enviando a GHL...');
+
+      const doc = buildClinicalPDF(pName, pId, dName, sigImg);
+      const consentimientoPdfBase64 = doc.output('datauristring');
+
+      // Lista de lo marcado como "Requerido" (no realizado todavía) —
+      // separado del desglose completo a propósito: esto es para que
+      // GHL pueda filtrar/etiquetar por tratamientos pendientes y
+      // armar retargeting de presupuestos sin cerrar, no para
+      // reemplazar la nota con el desglose completo que ya existe.
+      const LABELS_GENERAL = { corona: 'Corona', implante: 'Implante', ausente: 'Ausente' };
+      const LABELS_SURGERY = { exodoncia: 'Exodoncia', resto: 'Resto Radicular', impactado: 'Pieza Impactada', lesion: 'Quiste/Ápice', perno: 'Perno/Muñón', bloque: 'Injerto en Bloque', seno: 'Elevación de Seno', rog: 'ROG', gingivectomia: 'Gingivectomía', colgajo: 'Cirugía de Colgajo', rtg_perio: 'Regeneración Tisular Guiada', alargamiento: 'Alargamiento Coronario' };
+      const tratamientosRequeridos = [];
+      for (const [fdi, rec] of Object.entries(clinicalRecords)) {
+        if (rec.status !== 'diagnosticado') continue;
+        if (rec.general && LABELS_GENERAL[rec.general]) tratamientosRequeridos.push(`Pieza ${fdi}: ${LABELS_GENERAL[rec.general]}`);
+        if (rec.surgery && LABELS_SURGERY[rec.surgery]) tratamientosRequeridos.push(`Pieza ${fdi}: ${LABELS_SURGERY[rec.surgery]}`);
+        if (rec.canales && Object.values(rec.canales).some(v => v)) tratamientosRequeridos.push(`Pieza ${fdi}: Endodoncia`);
+      }
+
+      const payload = {
+        source: 'Odontograma 3D Tablet',
+        timestamp: new Date().toISOString(),
+        paciente: {
+          nombre: pName,
+          documento_id: pId,
+          doctor_tratante: dName,
+          telefono: pPhone,
+          consentimiento_aprobado: true,
+          alertas_medicas: medicalAlerts,
+          firma_base64: sigImg,
+          consentimiento_pdf_base64: consentimientoPdfBase64
+        },
+        total_presupuesto: budget.total,
+        moneda: 'PEN',
+        desglose: budget.items,
+        tratamientos_requeridos: tratamientosRequeridos,
+        detalles_clinicos: { general: clinicalRecords, periodoncia: perioRecords, removible: removableRecords, oclusion: occlusionRecords, atm: atmRecords, trauma: clinicalRecords, malposicion: clinicalRecords, estetica: esteticaRecords, ortodoncia: orthoRecords, puentes: bridges }
+      };
+
+      try {
+        const res = await fetch(ODONTOGRAMA_WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Odontograma-Secret': ODONTOGRAMA_WEBHOOK_SECRET },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `Error HTTP ${res.status}`);
+
+        statusMsg('Sincronizado con GHL con éxito.');
+        const smsTxt = data.sms_enviado ? 'Confirmación por SMS enviada.' : 'No se pudo enviar el SMS (revisar en GHL).';
+        alert(`¡Presupuesto de S/ ${budget.total.toLocaleString('es-PE')} enviado a GoHighLevel!\n\nContacto: ${data.contact_id || '(ver GHL)'}\n${smsTxt}`);
+      } catch (err) {
+        console.error('Error al sincronizar con GHL:', err);
+        statusMsg('Error al sincronizar con GHL.');
+        alert(`No se pudo enviar a GHL: ${err.message}\n\nNada se perdió — puedes reintentar, o usar "Guardar PDF" como respaldo.`);
+      }
+    }
+
+    // Interacción Táctil y Raycasting
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let downPos = { x: 0, y: 0 };
+
+    window.addEventListener('pointerdown', (e) => { downPos = { x: e.clientX, y: e.clientY }; });
+    window.addEventListener('pointerup', (e) => {
+      if (e.target.closest('#specialty-rail') || e.target.closest('#top-bar') || e.target.closest('#bottom-sheet') || e.target.closest('#layer-floating-bar') || e.target.closest('.modal-overlay')) return;
+      if (Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y) > 6) return;
+
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+
+      let closestFdi = null, minDist = Infinity;
+      const hitIntersects = raycaster.intersectObjects(hitBoxes.children);
+      if (hitIntersects.length > 0) {
+        closestFdi = hitIntersects[0].object.userData.fdi;
+      } else {
+        const meshIntersects = raycaster.intersectObjects(meshTargets, true);
+        if (meshIntersects.length > 0) {
+          const pt = meshIntersects[0].point;
+          for (const [fdi, pos] of Object.entries(currentPositions)) {
+            const d = pt.distanceTo(getToothWorldPos(pos));
+            if (d < minDist) { minDist = d; closestFdi = parseInt(fdi); }
+          }
+        }
+      }
+      if (closestFdi) selectTooth(closestFdi);
+    });
+
+    function selectTooth(fdi) {
+      selectedTooth = fdi;
+      document.getElementById('lbl-piece').innerText = fdi;
+      document.getElementById('bottom-sheet').classList.remove('minimized');
+      updateUIState();
+      renderAllLayers();
+    }
+
+    window.setDentitionMode = function(m) {
+      currentMode = m;
+      document.getElementById('btn-mode-adult').classList.toggle('active', m === 'adult');
+      document.getElementById('btn-mode-temp').classList.toggle('active', m === 'temporal');
+      selectedTooth = null;
+      document.getElementById('lbl-piece').innerText = 'Ninguna';
+      document.getElementById('bottom-sheet').classList.add('minimized');
+      loadArchData();
+    };
+
+    window.setArch = function(a) {
+      currentArch = a;
+      document.getElementById('btn-arch-inf').classList.toggle('active', a === 'inferior');
+      document.getElementById('btn-arch-sup').classList.toggle('active', a === 'superior');
+      document.getElementById('face-l').innerText = a === 'inferior' ? 'L' : 'P';
+      document.getElementById('lbl-perio-pal-sec').innerText = a === 'inferior' ? 'Lingual (PS / REC / BOP)' : 'Palatino (PS / REC / BOP)';
+      document.getElementById('lbl-aparato-funcional').innerText = orthoRecords[a].aparatoFuncional || 'Ninguno';
+      document.getElementById('lbl-retenedor').innerText = orthoRecords[a].retenedor ? RETENEDORES_LBL[orthoRecords[a].retenedor] : 'Ninguno';
+      selectedTooth = null;
+      document.getElementById('lbl-piece').innerText = 'Ninguna';
+      document.getElementById('bottom-sheet').classList.add('minimized');
+      loadArchData();
+    };
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    loadArchData();
+    animate();
+  </script>
+</body>
+</html>
