@@ -65,6 +65,30 @@ Ver `../odontograma-ghl-integration/GHL_SETUP.md` para el resto de la configurac
 
 Además, al sincronizar con GHL, el visor genera el mismo PDF clínico que el botón "Descargar PDF" (con la firma incrustada) y lo manda al backend para que quede adjunto al contacto en GHL — antes esa parte no existía.
 
+
+## Realismo del modelo 3D (materiales anatómicos y raíces)
+
+Los cuatro `.glb` ya no usan la textura pintada original: se procesaron con `herramientas/procesar_arcadas.mjs`, que a partir de esa textura separa cada vértice en **diente** o **encía** y deja la malla con dos primitivas y dos materiales (`esmalte` y `encia`), más un color por vértice horneado:
+
+- **Esmalte** `#F5F0E6` con un toque de **dentina** `#E6CFA6` en el tercio cervical (donde el esmalte es más delgado y la dentina se transparenta).
+- **Surcos y fisuras** oscurecidos y **cúspides / rebordes marginales** aclarados, calculados con la curvatura de la malla a dos escalas (fina para fisuras, amplia para fosas y troneras).
+- La superficie dentaria que queda **por debajo del margen gingival** se pinta como raíz `#E8D4B9`.
+- **Encía** `#F8C8C8`, con encía marginal y papilas más saturadas y sombra en los surcos.
+
+En el visor, `esmalte` es un `MeshPhysicalMaterial` con clearcoat suave y `sheen` (halo translúcido en los bordes) y `encia` otro con clearcoat para el aspecto húmedo; ambos se iluminan con un entorno PMREM (`RoomEnvironment`) además de las luces de la escena. Las intensidades de las luces se bajaron: con los materiales nuevos, las anteriores quemaban a blanco las caras oclusales y escondían los surcos.
+
+**Raíces:** el modelo original solo tiene coronas. El script mide cada pieza (eje largo, nivel cervical, ancho mesiodistal) y escribe `raices_*.json`; el visor genera la raíz por torno (`LatheGeometry`) según la morfología de cada tipo de pieza — unirradicular en incisivos, canino más largo, dos raíces en molares inferiores, tres en superiores, primer premolar superior bifurcado, y raíces más cortas y divergentes en temporales. **No son las raíces reales del paciente: son una representación anatómica estándar.** La capa **Raíces** (última de la barra verde) las muestra u oculta; cuando está activa la encía se vuelve translúcida para poder verlas. Una pieza marcada como ausente o con implante oculta su raíz.
+
+Quitar las texturas de color bajó el repo de ~76MB a ~48MB, así que además carga más rápido.
+
+Para regenerar los `.glb` desde los originales:
+
+```bash
+node herramientas/procesar_arcadas.mjs arcada_inferior.glb dientes_posiciones.json salida.glb raices_inferior.json
+```
+
+Necesita `@gltf-transform/cli`, `draco3dgltf` y `sharp`. Los originales con textura ya no están en el repo: se conservan en el historial de git (commit `e0a77a0`).
+
 ## Deploy
 
 ### Opción A — GitHub Pages (recomendado, workflow ya incluido)

@@ -386,6 +386,7 @@
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/environments/RoomEnvironment.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 </head>
@@ -426,6 +427,7 @@
     <button class="layer-chip active" id="layer-estetica" onclick="toggleLayer('estetica')">VITA</button>
     <button class="layer-chip active" id="layer-pediatric" onclick="toggleLayer('pediatric')">Odontopediatría</button>
     <button class="layer-chip active" id="layer-ortho" onclick="toggleLayer('ortho')">Ortodoncia</button>
+    <button class="layer-chip active" id="layer-raices" onclick="toggleLayer('raices')">Raíces</button>
   </div>
 
   <!-- Riel Lateral Derecho de Especialidades -->
@@ -859,12 +861,12 @@
   <script>
     const CONFIG = {
       adult: {
-        inferior: { glb: './arcada_inferior.glb', json: './dientes_posiciones.json' },
-        superior: { glb: './arcada_superior.glb', json: './dientes_superiores_posiciones.json' }
+        inferior: { glb: './arcada_inferior.glb', json: './dientes_posiciones.json', raices: './raices_inferior.json' },
+        superior: { glb: './arcada_superior.glb', json: './dientes_superiores_posiciones.json', raices: './raices_superior.json' }
       },
       temporal: {
-        inferior: { glb: './arcada_temporal_inferior.glb', json: './dientes_temporales_inferiores.json' },
-        superior: { glb: './arcada_temporal_superior.glb', json: './dientes_temporales_superiores.json' }
+        inferior: { glb: './arcada_temporal_inferior.glb', json: './dientes_temporales_inferiores.json', raices: './raices_temporal_inferior.json' },
+        superior: { glb: './arcada_temporal_superior.glb', json: './dientes_temporales_superiores.json', raices: './raices_temporal_superior.json' }
       }
     };
 
@@ -957,20 +959,46 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.physicallyCorrectLights = false;
+
+    // Entorno de estudio suave: da los reflejos del esmalte y el brillo húmedo de la encía.
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const dentalEnvMap = pmrem.fromScene(new THREE.RoomEnvironment(), 0.04).texture;
+
+    // Materiales anatómicos. Los .glb traen dos primitivas ("esmalte" y "encia") con
+    // colores por vértice ya horneados: dentina cervical, surcos, cúspides y encía marginal.
+    const DENTAL_MATERIALS = {
+      esmalte: new THREE.MeshPhysicalMaterial({
+        vertexColors: true, roughness: 0.26, metalness: 0,
+        clearcoat: 0.4, clearcoatRoughness: 0.2,
+        sheen: new THREE.Color(0x2b3542),           // halo translúcido en bordes, como el esmalte incisal
+        envMapIntensity: 0.45, side: THREE.DoubleSide,
+      }),
+      encia: new THREE.MeshPhysicalMaterial({
+        vertexColors: true, roughness: 0.55, metalness: 0,
+        clearcoat: 0.6, clearcoatRoughness: 0.18,   // película húmeda
+        envMapIntensity: 0.3, side: THREE.DoubleSide,
+        normalScale: new THREE.Vector2(0.35, 0.35), // textura suave
+      }),
+      raiz: new THREE.MeshStandardMaterial({ color: 0xE8D4B9, roughness: 0.92, metalness: 0, envMapIntensity: 0.35 }),
+    };
+    DENTAL_MATERIALS.raiz.color.convertSRGBToLinear();
+    Object.values(DENTAL_MATERIALS).forEach(m => { m.envMap = dentalEnvMap; });
+    const GUM_OPACITY_WITH_ROOTS = 0.55;
 
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
 
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x94a3b8, 1.1);
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x8f8480, 0.38);
     scene.add(hemiLight);
 
-    const mainLight = new THREE.DirectionalLight(0xffffff, 0.95);
+    const mainLight = new THREE.DirectionalLight(0xfffaf2, 0.5);
     mainLight.position.set(5, 10, 6);
     scene.add(mainLight);
 
-    const rimLight = new THREE.DirectionalLight(0x64748b, 0.6);
+    const rimLight = new THREE.DirectionalLight(0x94a3b8, 0.22);
     rimLight.position.set(-6, -6, -5);
     scene.add(rimLight);
 
@@ -1000,8 +1028,19 @@
     const layerVisibility = {
       general: true, surgery: true, perio: true, bridges: true,
       removible: true, occlusion: true, trauma: true, malposition: true,
-      estetica: true, pediatric: true, ortho: true
+      estetica: true, pediatric: true, ortho: true, raices: true
     };
+
+    let rootsGroup = null;
+    function applyRootsVisibility() {
+      const show = layerVisibility.raices;
+      if (rootsGroup) rootsGroup.visible = show;
+      const gum = DENTAL_MATERIALS.encia;
+      gum.transparent = show;
+      gum.opacity = show ? GUM_OPACITY_WITH_ROOTS : 1;
+      gum.depthWrite = !show;
+      gum.needsUpdate = true;
+    }
 
     window.toggleLayer = function(layerKey) {
       layerVisibility[layerKey] = !layerVisibility[layerKey];
@@ -1019,6 +1058,7 @@
       if (layerKey === 'estetica') esteticaGroup.visible = active;
       if (layerKey === 'pediatric') pediatricGroup.visible = active;
       if (layerKey === 'ortho') orthoGroup.visible = active;
+      if (layerKey === 'raices') applyRootsVisibility();
     };
 
     window.toggleAppTheme = function() {
@@ -1026,8 +1066,8 @@
       document.body.classList.toggle('dark-mode', isDarkMode);
       document.getElementById('btn-theme-toggle').innerText = isDarkMode ? '🌙' : '☀️';
       scene.background = new THREE.Color(isDarkMode ? 0x150d10 : 0xe7dbd6);
-      hemiLight.groundColor.setHex(isDarkMode ? 0x1e293b : 0x94a3b8);
-      hemiLight.intensity = isDarkMode ? 1.4 : 1.1;
+      hemiLight.groundColor.setHex(isDarkMode ? 0x1e293b : 0x8f8480);
+      hemiLight.intensity = isDarkMode ? 0.6 : 0.38;
     };
 
     window.toggleBottomSheet = function() {
@@ -1107,6 +1147,104 @@
     dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
     loader.setDRACOLoader(dracoLoader);
 
+    // ---------- Raíces ----------
+    // Morfología radicular por tipo de pieza. L = largo relativo al ancho mesiodistal
+    // de la corona; m/b = desplazamiento y tilt hacia mesial/vestibular; r = grosor relativo.
+    function rootMorphology(fdi, superior, temporal) {
+      const d = fdi % 10;
+      if (temporal) {
+        if (d <= 2) return [{ L: 1.25 }];
+        if (d === 3) return [{ L: 1.5 }];
+        return superior
+          ? [{ L: 1.0, m: 0.25, b: 0.2, tm: 0.3, tb: 0.2, r: 0.45 }, { L: 0.95, m: -0.25, b: 0.2, tm: -0.3, tb: 0.2, r: 0.45 }, { L: 1.05, b: -0.25, tb: -0.3, r: 0.5 }]
+          : [{ L: 1.05, m: 0.27, tm: 0.32, r: 0.5 }, { L: 1.0, m: -0.27, tm: -0.32, r: 0.5 }];
+      }
+      if (d <= 2) return [{ L: 2.0, rb: 1.2 }];
+      if (d === 3) return [{ L: 2.5, rb: 1.2 }];
+      if (d === 4 && superior) return [{ L: 1.9, b: 0.2, tb: 0.1, r: 0.6 }, { L: 1.85, b: -0.2, tb: -0.1, r: 0.6 }];
+      if (d <= 5) return [{ L: 2.0, rb: 1.1 }];
+      const k = d === 8 ? 0.85 : 1;
+      return superior
+        ? [{ L: 1.55 * k, m: 0.22, b: 0.2, tm: 0.1, tb: 0.08, r: 0.48 }, { L: 1.45 * k, m: -0.22, b: 0.2, tm: -0.1, tb: 0.08, r: 0.45 }, { L: 1.7 * k, b: -0.24, tb: -0.16, r: 0.55 }]
+        : [{ L: 1.7 * k, m: 0.25, tm: 0.12, r: 0.55, rb: 1.3 }, { L: 1.6 * k, m: -0.25, tm: -0.1, r: 0.52, rb: 1.3 }];
+    }
+
+    function rootGeometry(length, rMD, rBL, lift) {
+      const pts = [];
+      const steps = 18;
+      pts.push(new THREE.Vector2(1, lift));
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const r = Math.pow(Math.max(0, 1 - Math.pow(t, 1.8)), 0.55); // se afina hacia el ápice y cierra redondeado
+        pts.push(new THREE.Vector2(Math.max(r, 0.0001), -t * length));
+      }
+      const g = new THREE.LatheGeometry(pts, 20);
+      g.scale(rMD, 1, rBL);
+      g.computeVertexNormals();
+      return g;
+    }
+
+    function buildRoots(data) {
+      const group = new THREE.Group();
+      group.name = 'raices';
+      group.userData.byFdi = {};
+      group.userData.up = data.up;
+      const superior = currentArch === 'superior';
+      const temporal = currentMode === 'temporal';
+      const up = new THREE.Vector3().fromArray(data.up).normalize();
+      const order = getAnatomicalOrder().filter(f => data.piezas[f]);
+      const baseOf = f => new THREE.Vector3().fromArray(data.piezas[f].base);
+      const centroid = new THREE.Vector3();
+      order.forEach(f => centroid.add(baseOf(f)));
+      centroid.divideScalar(Math.max(1, order.length));
+
+      order.forEach((fdi, i) => {
+        const p = data.piezas[fdi];
+        const base = baseOf(fdi);
+        // Ancho mesiodistal: distancia media a las piezas vecinas
+        const vecinos = [order[i - 1], order[i + 1]].filter(Boolean).map(f => base.distanceTo(baseOf(f)));
+        const w = vecinos.length ? vecinos.reduce((a, b) => a + b, 0) / vecinos.length : p.ancho;
+
+        const axis = p.eje ? new THREE.Vector3().fromArray(p.eje).normalize() : up; // eje largo propio de la pieza
+        const tan = new THREE.Vector3().fromArray(p.tan);
+        tan.addScaledVector(axis, -tan.dot(axis)).normalize();
+        const z = new THREE.Vector3().crossVectors(tan, axis).normalize();
+        const basis = new THREE.Matrix4().makeBasis(tan, axis, z);
+
+        const quadrantOdd = Math.floor(fdi / 10) % 2 === 1;
+        const mesialSign = quadrantOdd ? 1 : -1;                    // mesial = hacia la línea media
+        const toOut = base.clone().sub(centroid);
+        const buccalSign = toOut.dot(z) >= 0 ? 1 : -1;              // vestibular = hacia afuera de la arcada
+
+        const tooth = new THREE.Group();
+        tooth.position.copy(base);
+        tooth.quaternion.setFromRotationMatrix(basis);
+        tooth.userData.fdi = fdi;
+
+        rootMorphology(fdi, superior, temporal).forEach(spec => {
+          const r0 = 0.34 * w * (spec.r || 1);
+          const geo = rootGeometry(spec.L * w, r0, r0 * (spec.rb || 1), 0.05 * w);
+          const root = new THREE.Mesh(geo, DENTAL_MATERIALS.raiz);
+          root.position.set((spec.m || 0) * w * mesialSign, 0, (spec.b || 0) * w * buccalSign);
+          root.rotation.z = (spec.tm || 0) * mesialSign;               // apex hacia mesial/distal
+          root.rotation.x = -(spec.tb || 0) * buccalSign;              // apex hacia vestibular/lingual
+          tooth.add(root);
+        });
+        group.add(tooth);
+        group.userData.byFdi[fdi] = tooth;
+      });
+      return group;
+    }
+
+    // Una pieza ausente o reemplazada por implante no muestra su raíz natural.
+    function updateRootsForRecords() {
+      if (!rootsGroup) return;
+      for (const [fdi, tooth] of Object.entries(rootsGroup.userData.byFdi)) {
+        const rec = clinicalRecords[fdi];
+        tooth.visible = !(rec && (rec.general === 'ausente' || rec.general === 'implante'));
+      }
+    }
+
     function getAnatomicalOrder() {
       return (currentMode === 'temporal')
         ? (currentArch === 'superior' ? [55,54,53,52,51,61,62,63,64,65] : [85,84,83,82,81,71,72,73,74,75])
@@ -1123,9 +1261,10 @@
         obj.traverse((child) => {
           if (child.isMesh) {
             if (child.geometry) child.geometry.dispose();
+            const shared = Object.values(DENTAL_MATERIALS);
             if (child.material) {
-              if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
-              else child.material.dispose();
+              if (Array.isArray(child.material)) child.material.forEach(m => { if (!shared.includes(m)) m.dispose(); });
+              else if (!shared.includes(child.material)) child.material.dispose();
             }
           }
         });
@@ -1133,11 +1272,18 @@
       }
       meshTargets.length = 0;
       activeModel = null;
+      rootsGroup = null;
 
       try {
         const res = await fetch(setting.json);
         currentPositions = await res.json();
       } catch (err) { currentPositions = {}; }
+
+      let rootsData = null;
+      try {
+        const res = await fetch(setting.raices);
+        if (res.ok) rootsData = await res.json();
+      } catch (err) { rootsData = null; }
 
       loader.load(setting.glb, (gltf) => {
         if (loadToken !== currentLoadToken) return;
@@ -1159,14 +1305,30 @@
           if (c.isMesh) {
             meshTargets.push(c);
             if (c.material) {
-              c.material.side = THREE.DoubleSide;
-              if (c.material.isMeshStandardMaterial || c.material.isMeshPhysicalMaterial) {
-                c.material.roughness = 0.38;
-                c.material.metalness = 0.0;
+              const tipo = c.material.name;
+              if (DENTAL_MATERIALS[tipo]) {
+                const original = c.material;
+                const mat = DENTAL_MATERIALS[tipo];
+                if (original.normalMap && mat.normalMap !== original.normalMap) { mat.normalMap = original.normalMap; mat.needsUpdate = true; }
+                c.material = mat;
+                c.renderOrder = tipo === 'encia' ? 2 : 0;
+                original.dispose();
+              } else {
+                c.material.side = THREE.DoubleSide;
+                if (c.material.isMeshStandardMaterial || c.material.isMeshPhysicalMaterial) {
+                  c.material.roughness = 0.38;
+                  c.material.metalness = 0.0;
+                }
               }
             }
           }
         });
+
+        if (rootsData) {
+          rootsGroup = buildRoots(rootsData);
+          activeModel.add(rootsGroup);
+        }
+        applyRootsVisibility();
 
         camera.position.set(0, currentArch === 'inferior' ? 3.2 : -3.2, 1.4);
         camera.lookAt(0, 0, 0);
@@ -1215,6 +1377,7 @@
       renderEstetica();
       renderOrtho();
       renderPediatric();
+      updateRootsForRecords();
     }
 
     // Sistema Limpio de Marcas por Caras (Alto Contraste Clínico)
