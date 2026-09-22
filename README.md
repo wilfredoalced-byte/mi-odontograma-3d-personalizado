@@ -38,7 +38,7 @@ mi-odontograma-3d/
 └── .github/workflows/deploy-pages.yml     ✅ deploy automático a Pages en cada push a main
 ```
 
-Repo completo: **76MB**. Ningún archivo individual supera los 27MB — cómodo bajo el límite de 100MB de GitHub.
+Repo completo: **~44MB**. Cada arcada pesa entre 7,7MB y 11,5MB (Draco con cuantización a 12 bits y sin texturas de color).
 
 ## Por qué los .glb están comprimidos
 
@@ -88,6 +88,36 @@ node herramientas/procesar_arcadas.mjs arcada_inferior.glb dientes_posiciones.js
 ```
 
 Necesita `@gltf-transform/cli`, `draco3dgltf` y `sharp`. Los originales con textura ya no están en el repo: se conservan en el historial de git (commit `e0a77a0`).
+
+
+## Anatomía interna, referencias clínicas y vistas (estándar tipo Primal)
+
+El botón **🦴 Anatomía** de la barra superior abre una barra con tres bloques:
+
+**Estructuras** (se encienden y apagan por separado). Cuando hay una capa más profunda encendida, las de afuera se vuelven translúcidas solas:
+
+| Capa | Color | Qué es |
+|---|---|---|
+| Encía | `#E8A8B0` / `#F0C8D0` marginal | La encía del modelo escaneado |
+| Esmalte | `#F5F0E6`, bordes `#F0E8D8` | Superficie real del escaneo |
+| Dentina | `#F2E2C4` | Núcleo coronario y radicular, generado |
+| Pulpa y conductos | `#D8B5A0` | Cámara pulpar con cuernos y conducto por raíz |
+| Ligamento | `#E7C6BC` | Vaina fina entre raíz y hueso |
+| Hueso alveolar | `#E0D5C0` | Reborde con festón interdental |
+
+**Vistas**: frontal, lateral derecha e izquierda, oclusal y 3/4, con vuelo suave de cámara. **Corte sagital** activa un plano de corte que pasa por la pieza seleccionada, para ver cámara y conducto por dentro.
+
+**Referencias**: número **FDI** sobre cada pieza (el contorno lleva el color del estado), **anillo de estado**, **puntos de contacto**, **línea de oclusión** y **enfoque al tocar** (al elegir una pieza la cámara la centra y se abre su ficha con nombre, tipo, estado, número de raíces y de conductos). Al pasar el cursor aparece la etiqueta de la estructura: cúspide, surco central, cuello cervical, raíz mesial, ligamento, hueso…
+
+**Código de estado** (se calcula de lo ya marcado en la ficha): 🟢 sano · 🔴 patológico (requerido) · 🟡 en observación · 🔵 tratado (realizado o previo) · ⚪ ausente · 🟣 prótesis o implante.
+
+### Qué es real y qué es una representación
+
+- **Real (del escaneo):** la forma de coronas y encía, sus surcos, cúspides y el contorno festoneado del margen gingival.
+- **Generado por el visor:** raíces, dentina, cámara pulpar, conductos, ligamento y hueso alveolar. Siguen la morfología estándar de cada tipo de pieza y las medidas de esa pieza en el modelo (eje, nivel cervical, ancho y grosor), **pero no son la anatomía interna real del paciente**. Sirven para explicar y para docencia, no para diagnóstico.
+- **No incluido:** remodelar cada corona con sus lóbulos de desarrollo o rehacer los surcos pieza por pieza exigiría reemplazar el modelo base por una librería dental esculpida (licencia aparte). Lo que sí se hizo fue resaltar la anatomía que el escaneo ya tiene, con sombreado por curvatura.
+
+El dorado `#D4AF37` de Fassiara se usa solo en la interfaz (bordes de la barra, línea de oclusión), nunca sobre dientes ni tejidos. El fondo es un degradado neutro y la luz principal entra a 45° desde arriba.
 
 ## Deploy
 

@@ -7,7 +7,7 @@
 // Uso: node process.mjs <entrada.glb> <posiciones.json> <salida.glb> <salida_raices.json>
 import fs from 'fs';
 import { NodeIO } from '@gltf-transform/core';
-import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
+import { ALL_EXTENSIONS, KHRDracoMeshCompression } from '@gltf-transform/extensions';
 import { prune } from '@gltf-transform/functions';
 import draco3d from 'draco3dgltf';
 import sharp from 'sharp';
@@ -202,19 +202,20 @@ log('distancias al margen listas');
 
 // ---------- colores por vértice (lineales) ----------
 const lin = h => [0, 2, 4].map(s => { const c = parseInt(h.slice(1 + s, 3 + s), 16) / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
-const ESMALTE = lin('#F5F0E6'), DENTINA = lin('#E6CFA6'), FISURA = lin('#A5875F'), FOSA = lin('#DCC7A3'), CUSPIDE = lin('#FFFDF8');
+const ESMALTE = lin('#F5F0E6'), DENTINA = lin('#F2E2C4'), FISURA = lin('#A5875F'), FOSA = lin('#DCC7A3'), BORDE = lin('#F0E8D8');
 const RAIZ = lin('#E8D4B9');
-const ENCIA = lin('#F8C8C8'), MARGEN = lin('#EFA5AA'), SURCO_ENCIA = lin('#D98C94');
+const ENCIA = lin('#E8A8B0'), MARGEN = lin('#F0C8D0'), SURCO_ENCIA = lin('#C98A93');
 const ss = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
 const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 const COL = new Float32Array(nV * 3);
+const ZONA = new Uint8Array(nV); // 0 encía insertada 1 encía marginal 2 cúspide/borde 3 surco 4 cuerpo 5 cuello 6 raíz
 for (let i = 0; i < nV; i++) {
   let c;
   if (!gum[i]) {
     c = ESMALTE;
     c = mix(c, DENTINA, 0.6 * (1 - ss(0.0, 0.07, dist[i])));   // tercio cervical: el esmalte es más delgado y la dentina se transparenta
     c = mix(c, FOSA, 0.55 * ss(kB.g0, kB.g1, broad[i]));        // fosas y troneras (sombra amplia)
-    c = mix(c, CUSPIDE, 0.5 * ss(kB.c0, kB.c1, broad[i]) + 0.3 * ss(kT.c0, kT.c1, curv[i])); // cúspides y rebordes marginales
+    c = mix(c, BORDE, 0.55 * ss(kB.c0, kB.c1, broad[i]) + 0.3 * ss(kT.c0, kT.c1, curv[i])); // cúspides y bordes: esmalte más translúcido
     c = mix(c, FISURA, 0.85 * ss(kT.g0, kT.g1, curv[i]));       // surcos y fisuras
     c = mix(c, RAIZ, 0.9 * ss(0.004, 0.03, srcH[i] - hOf(i)));  // lo que queda por debajo del margen gingival ya es raíz
   } else {
@@ -225,6 +226,12 @@ for (let i = 0; i < nV; i++) {
     c = [c[0] * v, c[1] * v, c[2] * v];
   }
   COL[3 * i] = c[0]; COL[3 * i + 1] = c[1]; COL[3 * i + 2] = c[2];
+  if (gum[i]) ZONA[i] = dist[i] < 0.035 ? 1 : 0;
+  else if (srcH[i] - hOf(i) > 0.012) ZONA[i] = 6;
+  else if (dist[i] < 0.045) ZONA[i] = 5;
+  else if (ss(kT.g0, kT.g1, curv[i]) > 0.5) ZONA[i] = 3;
+  else if (ss(kB.c0, kB.c1, broad[i]) > 0.5) ZONA[i] = 2;
+  else ZONA[i] = 4;
 }
 
 // ---------- separar en dos primitivas ----------
@@ -242,7 +249,7 @@ if (normalTex) {
   mEsmalte.setNormalTexture(normalTex); mEsmalte.getNormalTextureInfo().setTexCoord(0);
   mEncia.setNormalTexture(normalTex); mEncia.getNormalTextureInfo().setTexCoord(0);
 }
-prim.setAttribute('COLOR_0', colAcc).setIndices(doc.createAccessor('idx_dientes').setType('SCALAR').setArray(new Uint32Array(teethIdx)).setBuffer(buf)).setMaterial(mEsmalte);
+prim.setAttribute('_ZONA', doc.createAccessor('zona').setType('SCALAR').setArray(new Float32Array(ZONA)).setBuffer(buf)).setAttribute('COLOR_0', colAcc).setIndices(doc.createAccessor('idx_dientes').setType('SCALAR').setArray(new Uint32Array(teethIdx)).setBuffer(buf)).setMaterial(mEsmalte);
 const gumPrim = doc.createPrimitive().setMaterial(mEncia)
   .setIndices(doc.createAccessor('idx_encia').setType('SCALAR').setArray(new Uint32Array(gumIdx)).setBuffer(buf));
 for (const s of prim.listSemantics()) gumPrim.setAttribute(s, prim.getAttribute(s));
@@ -310,5 +317,8 @@ roots.up = up.map(x => +x.toFixed(4));
 fs.writeFileSync(rootsFile, JSON.stringify(roots, null, 1));
 log('raíces medidas', Object.keys(roots.piezas).length, 'piezas');
 
+const draco = doc.createExtension(KHRDracoMeshCompression).setRequired(true)
+  .setEncoderOptions({ method: KHRDracoMeshCompression.EncoderMethod.EDGEBREAKER, encodeSpeed: 3, decodeSpeed: 5,
+    quantizationVolume: "scene", quantizationBits: { POSITION: 12, NORMAL: 8, COLOR: 8, TEX_COORD: 10, GENERIC: 8 } });
 await io.write(outFile, doc);
 log('escrito', outFile, (fs.statSync(outFile).size / 1e6).toFixed(1), 'MB');

@@ -101,6 +101,54 @@
     body.dark-mode .btn-budget-pill { background: #1f0a10; }
     .btn-pdf { background: #be123c; border-color: #e11d48; color: #fff; }
 
+    /* Barra de anatomía: el dorado Fassiara va solo en la interfaz, nunca sobre los tejidos */
+    #anatomy-bar {
+      position: absolute;
+      top: 112px;
+      left: 16px;
+      display: none;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      max-width: min(760px, calc(100vw - 120px));
+      background: var(--bg-panel);
+      border: 1px solid #D4AF37;
+      padding: 8px 10px;
+      border-radius: 12px;
+      backdrop-filter: blur(10px);
+      box-shadow: var(--shadow-elevation);
+      z-index: 99;
+    }
+    #anatomy-bar.open { display: flex; }
+    #anatomy-bar .grupo-lbl {
+      font-size: 9.5px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+      color: #B08D2B; margin: 0 2px 0 6px; white-space: nowrap;
+    }
+    #anatomy-bar .salto { width: 100%; height: 0; }
+    .anat-chip {
+      border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-secondary);
+      padding: 5px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;
+    }
+    .anat-chip.active { border-color: #D4AF37; background: #FBF3DF; color: #7A5E12; }
+    body.dark-mode .anat-chip.active { background: #2b2210; color: #E6C765; }
+    .anat-swatch { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; border: 1px solid rgba(0,0,0,0.15); }
+    #anat-tooltip {
+      position: fixed; display: none; z-index: 200; pointer-events: none;
+      background: rgba(15,23,42,0.92); color: #fff; font-size: 11.5px; font-weight: 600;
+      padding: 5px 9px; border-radius: 7px; border-left: 3px solid #D4AF37; max-width: 210px;
+    }
+    #tooth-card {
+      position: absolute; right: 74px; bottom: 16px; display: none; z-index: 98;
+      min-width: 210px; max-width: 260px;
+      background: var(--bg-panel); border: 1px solid var(--border-color); border-top: 3px solid #D4AF37;
+      border-radius: 12px; padding: 10px 12px; box-shadow: var(--shadow-elevation); backdrop-filter: blur(10px);
+    }
+    #tooth-card h4 { margin: 0 0 2px; font-size: 15px; color: var(--primary); }
+    #tooth-card .sub { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
+    #tooth-card .fila { display: flex; justify-content: space-between; gap: 10px; font-size: 11px; padding: 2px 0; }
+    #tooth-card .fila span:first-child { color: var(--text-muted); }
+    @media (max-width: 820px) { #tooth-card { display: none !important; } #anatomy-bar { max-width: calc(100vw - 32px); } }
+
     /* Barra de Filtros de Capas 3D */
     #layer-floating-bar {
       position: absolute;
@@ -410,6 +458,7 @@
       <button class="touch-btn btn-alert" onclick="openAnamnesisModal()">⚠️ Alertas</button>
       <button class="touch-btn btn-budget-pill" id="btn-top-budget" onclick="openBudgetModal()">💰 S/ 0</button>
       <button class="touch-btn" id="btn-theme-toggle" onclick="toggleAppTheme()">☀️</button>
+      <button class="touch-btn" id="btn-anatomy" onclick="toggleAnatomyBar()">🦴 Anatomía</button>
       <button class="touch-btn btn-pdf" onclick="openConsentModal('pdf')">📄 PDF</button>
     </div>
   </div>
@@ -428,6 +477,42 @@
     <button class="layer-chip active" id="layer-pediatric" onclick="toggleLayer('pediatric')">Odontopediatría</button>
     <button class="layer-chip active" id="layer-ortho" onclick="toggleLayer('ortho')">Ortodoncia</button>
     <button class="layer-chip active" id="layer-raices" onclick="toggleLayer('raices')">Raíces</button>
+  </div>
+
+  <!-- Barra de Anatomía: estructuras internas, vistas y referencias clínicas -->
+  <div id="anatomy-bar">
+    <span class="grupo-lbl">Estructuras</span>
+    <button class="anat-chip active" id="anat-encia" onclick="toggleAnatomy('encia')"><i class="anat-swatch" style="background:#E8A8B0"></i>Encía</button>
+    <button class="anat-chip active" id="anat-esmalte" onclick="toggleAnatomy('esmalte')"><i class="anat-swatch" style="background:#F5F0E6"></i>Esmalte</button>
+    <button class="anat-chip" id="anat-dentina" onclick="toggleAnatomy('dentina')"><i class="anat-swatch" style="background:#F2E2C4"></i>Dentina</button>
+    <button class="anat-chip" id="anat-pulpa" onclick="toggleAnatomy('pulpa')"><i class="anat-swatch" style="background:#D8B5A0"></i>Pulpa y conductos</button>
+    <button class="anat-chip" id="anat-ligamento" onclick="toggleAnatomy('ligamento')"><i class="anat-swatch" style="background:#E7C6BC"></i>Ligamento</button>
+    <button class="anat-chip" id="anat-hueso" onclick="toggleAnatomy('hueso')"><i class="anat-swatch" style="background:#E0D5C0"></i>Hueso alveolar</button>
+    <span class="salto"></span>
+    <span class="grupo-lbl">Vistas</span>
+    <button class="anat-chip vista-chip" data-vista="frontal" onclick="setVista('frontal')">Frontal</button>
+    <button class="anat-chip vista-chip" data-vista="derecha" onclick="setVista('derecha')">Lateral der.</button>
+    <button class="anat-chip vista-chip" data-vista="izquierda" onclick="setVista('izquierda')">Lateral izq.</button>
+    <button class="anat-chip vista-chip" data-vista="oclusal" onclick="setVista('oclusal')">Oclusal</button>
+    <button class="anat-chip vista-chip" data-vista="tresCuartos" onclick="setVista('tresCuartos')">3/4</button>
+    <span class="salto"></span>
+    <span class="grupo-lbl">Referencias</span>
+    <button class="anat-chip active" id="extra-fdi" onclick="toggleExtra('fdi')">N.° FDI</button>
+    <button class="anat-chip" id="extra-estado" onclick="toggleExtra('estado')">Anillo de estado</button>
+    <button class="anat-chip" id="extra-contactos" onclick="toggleExtra('contactos')">Contactos</button>
+    <button class="anat-chip" id="extra-oclusal" onclick="toggleExtra('oclusal')">Línea oclusal</button>
+    <button class="anat-chip" id="extra-corte" onclick="toggleExtra('corte')">Corte sagital</button>
+    <button class="anat-chip active" id="extra-enfoque" onclick="toggleExtra('enfoque')">Enfoque al tocar</button>
+    <span class="salto"></span>
+    <span class="grupo-lbl">Estado</span>
+    <span style="font-size:10.5px; color:var(--text-muted); display:flex; flex-wrap:wrap; gap:8px;">
+      <span><i class="anat-swatch" style="background:#22c55e"></i>Sano</span>
+      <span><i class="anat-swatch" style="background:#ef4444"></i>Patológico</span>
+      <span><i class="anat-swatch" style="background:#eab308"></i>En observación</span>
+      <span><i class="anat-swatch" style="background:#3b82f6"></i>Tratado</span>
+      <span><i class="anat-swatch" style="background:#d4d4d8"></i>Ausente</span>
+      <span><i class="anat-swatch" style="background:#a855f7"></i>Prótesis/Implante</span>
+    </span>
   </div>
 
   <!-- Riel Lateral Derecho de Especialidades -->
@@ -855,6 +940,16 @@
     </div>
   </div>
 
+  <div id="anat-tooltip"></div>
+  <div id="tooth-card">
+    <h4 id="card-fdi">—</h4>
+    <div class="sub" id="card-nombre"></div>
+    <div class="fila"><span>Tipo</span><strong id="card-tipo"></strong></div>
+    <div class="fila"><span>Estado</span><strong id="card-estado"></strong></div>
+    <div class="fila"><span>Raíces</span><strong id="card-raices"></strong></div>
+    <div class="fila"><span>Conductos</span><strong id="card-conductos"></strong></div>
+  </div>
+
   <div id="status">Iniciando visor 3D...</div>
   <canvas id="canvas"></canvas>
 
@@ -948,7 +1043,19 @@
     const orthoRecords = { inferior: { brackets: {}, wire: 'none', aparatoFuncional: null, retenedor: null }, superior: { brackets: {}, wire: 'none', aparatoFuncional: null, retenedor: null } };
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xe7dbd6);
+    // Fondo neutro en degradado, sin distracciones (se conserva opaco para que salga bien en el PDF)
+    function fondoDegradado(arriba, abajo) {
+      const cv = document.createElement('canvas');
+      cv.width = 4; cv.height = 256;
+      const ctx = cv.getContext('2d');
+      const g = ctx.createLinearGradient(0, 0, 0, 256);
+      g.addColorStop(0, arriba); g.addColorStop(1, abajo);
+      ctx.fillStyle = g; ctx.fillRect(0, 0, 4, 256);
+      const tex = new THREE.CanvasTexture(cv);
+      tex.encoding = THREE.sRGBEncoding;
+      return tex;
+    }
+    scene.background = fondoDegradado('#F4EEEB', '#DFD2CD');
 
     const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.01, 1000);
     const renderer = new THREE.WebGLRenderer({
@@ -981,10 +1088,22 @@
         normalScale: new THREE.Vector2(0.35, 0.35), // textura suave
       }),
       raiz: new THREE.MeshStandardMaterial({ color: 0xE8D4B9, roughness: 0.92, metalness: 0, envMapIntensity: 0.35 }),
+      // Estructuras internas generadas por el visor (colores del estándar Primal)
+      dentina: new THREE.MeshStandardMaterial({ color: 0xF2E2C4, roughness: 0.62, metalness: 0, envMapIntensity: 0.3 }),
+      pulpa: new THREE.MeshStandardMaterial({ color: 0xD8B5A0, roughness: 0.78, metalness: 0, envMapIntensity: 0.2 }),
+      ligamento: new THREE.MeshStandardMaterial({ color: 0xE7C6BC, roughness: 0.85, metalness: 0, envMapIntensity: 0.2, transparent: true, opacity: 0.45, depthWrite: false, side: THREE.DoubleSide }),
+      hueso: new THREE.MeshStandardMaterial({ color: 0xE0D5C0, roughness: 0.95, metalness: 0, envMapIntensity: 0.18, side: THREE.DoubleSide }),
     };
-    DENTAL_MATERIALS.raiz.color.convertSRGBToLinear();
-    Object.values(DENTAL_MATERIALS).forEach(m => { m.envMap = dentalEnvMap; });
-    const GUM_OPACITY_WITH_ROOTS = 0.55;
+    ['raiz', 'dentina', 'pulpa', 'ligamento', 'hueso'].forEach(k => DENTAL_MATERIALS[k].color.convertSRGBToLinear());
+    Object.values(DENTAL_MATERIALS).forEach(m => { m.envMap = dentalEnvMap; m.clippingPlanes = []; });
+    renderer.localClippingEnabled = true;
+
+    // Capas anatómicas, de fuera hacia dentro. Cuando hay una capa más profunda
+    // encendida, las de afuera se vuelven translúcidas para dejarla ver.
+    // Profundidad de cada estructura: 0 = la más externa.
+    const ANATOMY_DEPTH = { encia: 0, hueso: 1, ligamento: 2, esmalte: 3, raices: 3, dentina: 4, pulpa: 5 };
+    const anatomyOn = { encia: true, hueso: false, ligamento: false, esmalte: true, dentina: false, pulpa: false };
+    const TRANSLUCENT = { encia: 0.42, hueso: 0.55, esmalte: 0.28, raiz: 0.4 };
 
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -995,7 +1114,7 @@
     scene.add(hemiLight);
 
     const mainLight = new THREE.DirectionalLight(0xfffaf2, 0.5);
-    mainLight.position.set(5, 10, 6);
+    mainLight.position.set(4, 8, 6); // luz principal a 45° desde arriba
     scene.add(mainLight);
 
     const rimLight = new THREE.DirectionalLight(0x94a3b8, 0.22);
@@ -1031,16 +1150,43 @@
       estetica: true, pediatric: true, ortho: true, raices: true
     };
 
-    let rootsGroup = null;
-    function applyRootsVisibility() {
-      const show = layerVisibility.raices;
-      if (rootsGroup) rootsGroup.visible = show;
-      const gum = DENTAL_MATERIALS.encia;
-      gum.transparent = show;
-      gum.opacity = show ? GUM_OPACITY_WITH_ROOTS : 1;
-      gum.depthWrite = !show;
-      gum.needsUpdate = true;
+    let rootsGroup = null, dentinaGroup = null, pulpaGroup = null, ligamentoGroup = null, huesoGroup = null;
+    let fdiLabelsGroup = null, estadoGroup = null, contactosGroup = null, oclusalLineGroup = null;
+    let enamelMeshes = [], gumMeshes = [];
+
+    function setTranslucent(mat, opacity, translucent) {
+      mat.transparent = translucent;
+      mat.opacity = translucent ? opacity : 1;
+      mat.depthWrite = !translucent;
+      mat.needsUpdate = true;
     }
+
+    // Cada estructura visible se vuelve translúcida si hay otra más profunda encendida.
+    function applyAnatomyVisibility() {
+      const visible = { ...anatomyOn, raices: layerVisibility.raices };
+      let deepest = -1;
+      for (const [k, on] of Object.entries(visible)) if (on) deepest = Math.max(deepest, ANATOMY_DEPTH[k]);
+
+      if (rootsGroup) rootsGroup.visible = visible.raices;
+      if (dentinaGroup) dentinaGroup.visible = visible.dentina;
+      if (pulpaGroup) pulpaGroup.visible = visible.pulpa;
+      if (ligamentoGroup) ligamentoGroup.visible = visible.ligamento;
+      if (huesoGroup) huesoGroup.visible = visible.hueso;
+      enamelMeshes.forEach(m => { m.visible = visible.esmalte; });
+
+      setTranslucent(DENTAL_MATERIALS.encia, TRANSLUCENT.encia, visible.encia && deepest > ANATOMY_DEPTH.encia);
+      setTranslucent(DENTAL_MATERIALS.hueso, TRANSLUCENT.hueso, visible.hueso && deepest > ANATOMY_DEPTH.hueso);
+      setTranslucent(DENTAL_MATERIALS.esmalte, TRANSLUCENT.esmalte, visible.esmalte && deepest > ANATOMY_DEPTH.esmalte);
+      setTranslucent(DENTAL_MATERIALS.raiz, TRANSLUCENT.raiz, visible.raices && deepest > ANATOMY_DEPTH.raices);
+
+      gumMeshes.forEach(m => { m.visible = visible.encia; });
+      Object.entries(anatomyOn).forEach(([k, on]) => document.getElementById(`anat-${k}`)?.classList.toggle('active', on));
+    }
+
+    window.toggleAnatomy = function(key) {
+      anatomyOn[key] = !anatomyOn[key];
+      applyAnatomyVisibility();
+    };
 
     window.toggleLayer = function(layerKey) {
       layerVisibility[layerKey] = !layerVisibility[layerKey];
@@ -1058,14 +1204,14 @@
       if (layerKey === 'estetica') esteticaGroup.visible = active;
       if (layerKey === 'pediatric') pediatricGroup.visible = active;
       if (layerKey === 'ortho') orthoGroup.visible = active;
-      if (layerKey === 'raices') applyRootsVisibility();
+      if (layerKey === 'raices') applyAnatomyVisibility();
     };
 
     window.toggleAppTheme = function() {
       isDarkMode = !isDarkMode;
       document.body.classList.toggle('dark-mode', isDarkMode);
       document.getElementById('btn-theme-toggle').innerText = isDarkMode ? '🌙' : '☀️';
-      scene.background = new THREE.Color(isDarkMode ? 0x150d10 : 0xe7dbd6);
+      scene.background = isDarkMode ? fondoDegradado('#1b1014', '#0B0709') : fondoDegradado('#F4EEEB', '#DFD2CD');
       hemiLight.groundColor.setHex(isDarkMode ? 0x1e293b : 0x8f8480);
       hemiLight.intensity = isDarkMode ? 0.6 : 0.38;
     };
@@ -1147,6 +1293,22 @@
     dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
     loader.setDRACOLoader(dracoLoader);
 
+    // Cuerpo coronario: cuello estrecho, ecuador abombado y techo en cúpula.
+    // Con `puntiagudo` termina en punta, como los cuernos pulpares bajo las cúspides.
+    function cuerpoCoronario(alto, radio, puntiagudo) {
+      const pts = [];
+      const pasos = 16;
+      for (let i = 0; i <= pasos; i++) {
+        const t = i / pasos;                        // 0 = cuello, 1 = borde oclusal
+        const r = radio * (0.82 + 0.22 * Math.sin(Math.PI * Math.min(1, t * 1.05)) - 0.42 * t * t);
+        pts.push(new THREE.Vector2(Math.max(r, 0.02), t * alto));
+      }
+      pts.push(new THREE.Vector2(0.001, alto * (puntiagudo ? 1.18 : 1.02)));
+      const g = new THREE.LatheGeometry(pts, 20);
+      g.computeVertexNormals();
+      return g;
+    }
+
     // ---------- Raíces ----------
     // Morfología radicular por tipo de pieza. L = largo relativo al ancho mesiodistal
     // de la corona; m/b = desplazamiento y tilt hacia mesial/vestibular; r = grosor relativo.
@@ -1189,6 +1351,10 @@
       group.name = 'raices';
       group.userData.byFdi = {};
       group.userData.up = data.up;
+      const medidas = {};
+      dentinaGroup = new THREE.Group(); dentinaGroup.userData.byFdi = {};
+      pulpaGroup = new THREE.Group(); pulpaGroup.userData.byFdi = {};
+      ligamentoGroup = new THREE.Group(); ligamentoGroup.userData.byFdi = {};
       const superior = currentArch === 'superior';
       const temporal = currentMode === 'temporal';
       const up = new THREE.Vector3().fromArray(data.up).normalize();
@@ -1221,29 +1387,394 @@
         tooth.quaternion.setFromRotationMatrix(basis);
         tooth.userData.fdi = fdi;
 
-        rootMorphology(fdi, superior, temporal).forEach(spec => {
+        // Grupos paralelos con la misma posición y orientación, uno por estructura
+        const mk = () => { const g = new THREE.Group(); g.position.copy(base); g.quaternion.copy(tooth.quaternion); g.userData.fdi = fdi; return g; };
+        const dent = mk(), pulp = mk(), pdl = mk();
+        const alto = Math.max(p.altoCorona || 0.2 * w, 0.55 * w);      // alto de corona medido (con un mínimo razonable)
+        const nombre = toothName(fdi);
+
+        const especs = rootMorphology(fdi, superior, temporal);
+        especs.forEach((spec, idx) => {
           const r0 = 0.34 * w * (spec.r || 1);
-          const geo = rootGeometry(spec.L * w, r0, r0 * (spec.rb || 1), 0.05 * w);
-          const root = new THREE.Mesh(geo, DENTAL_MATERIALS.raiz);
-          root.position.set((spec.m || 0) * w * mesialSign, 0, (spec.b || 0) * w * buccalSign);
-          root.rotation.z = (spec.tm || 0) * mesialSign;               // apex hacia mesial/distal
-          root.rotation.x = -(spec.tb || 0) * buccalSign;              // apex hacia vestibular/lingual
+          const largo = spec.L * w;
+          const place = (obj, extra) => {
+            obj.position.set((spec.m || 0) * w * mesialSign, extra || 0, (spec.b || 0) * w * buccalSign);
+            obj.rotation.z = (spec.tm || 0) * mesialSign;              // apex hacia mesial/distal
+            obj.rotation.x = -(spec.tb || 0) * buccalSign;             // apex hacia vestibular/lingual
+            return obj;
+          };
+          const etiquetaRaiz = especs.length === 1 ? 'Raíz' :
+            (spec.b !== undefined && spec.b < 0 ? 'Raíz palatina' : (spec.m === undefined ? 'Raíz' : (spec.m > 0 ? 'Raíz mesial' : 'Raíz distal')));
+
+          const root = place(new THREE.Mesh(rootGeometry(largo, r0, r0 * (spec.rb || 1), 0.05 * w), DENTAL_MATERIALS.raiz));
+          root.userData.label = `${etiquetaRaiz} · Pz ${fdi}`;
           tooth.add(root);
+
+          // Dentina radicular: el mismo cuerpo, un poco más estrecho
+          const dRoot = place(new THREE.Mesh(rootGeometry(largo * 0.97, r0 * 0.86, r0 * (spec.rb || 1) * 0.86, 0.04 * w), DENTAL_MATERIALS.dentina));
+          dRoot.userData.label = `Dentina radicular · Pz ${fdi}`;
+          dent.add(dRoot);
+
+          // Conducto radicular: del piso de la cámara al ápice, con una ligera curva
+          const canalR = Math.max(0.055 * w * (spec.r || 1), 0.012);
+          const curva = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(0, 0.12 * alto, 0),
+            new THREE.Vector3(0, -0.35 * largo, 0.12 * canalR),
+            new THREE.Vector3(0, -0.72 * largo, -0.6 * canalR),
+            new THREE.Vector3(0, -0.93 * largo, 0),
+          ]);
+          const canal = place(new THREE.Mesh(new THREE.TubeGeometry(curva, 28, canalR, 10, false), DENTAL_MATERIALS.pulpa));
+          canal.userData.label = `Conducto ${especs.length > 1 ? etiquetaRaiz.replace('Raíz ', '') : 'radicular'} · Pz ${fdi}`;
+          pulp.add(canal);
+
+          // Ligamento periodontal: vaina fina entre la raíz y el hueso
+          const lig = place(new THREE.Mesh(rootGeometry(largo * 1.02, r0 * 1.1, r0 * (spec.rb || 1) * 1.1, 0.05 * w), DENTAL_MATERIALS.ligamento));
+          lig.userData.label = `Ligamento periodontal · Pz ${fdi}`;
+          pdl.add(lig);
         });
-        group.add(tooth);
+
+        // Núcleo de dentina coronaria: cuello estrecho, cuerpo abombado y techo en cúpula
+        const nucleo = new THREE.Mesh(cuerpoCoronario(alto * 0.80, 1), DENTAL_MATERIALS.dentina);
+        nucleo.scale.set(0.30 * w, 1, 0.30 * (p.grosor || w));
+        nucleo.position.set(0, 0, 0);
+        nucleo.userData.label = `Dentina coronaria · Pz ${fdi}`;
+        dent.add(nucleo);
+
+        // Cámara pulpar: repite la forma de la corona a menor escala
+        const camK = temporal ? 1.3 : 1;                                // en dientes temporales la cámara es proporcionalmente mayor
+        const camara = new THREE.Mesh(cuerpoCoronario(alto * 0.42 * camK, 1, true), DENTAL_MATERIALS.pulpa);
+        camara.scale.set(0.11 * w * camK, 1, 0.11 * (p.grosor || w) * camK);
+        camara.position.set(0, 0.08 * alto, 0);
+        camara.userData.label = `Cámara pulpar · Pz ${fdi}`;
+        pulp.add(camara);
+
+        tooth.userData.label = `${nombre} · Pz ${fdi}`;
+        group.add(tooth); dentinaGroup.add(dent); pulpaGroup.add(pulp); ligamentoGroup.add(pdl);
         group.userData.byFdi[fdi] = tooth;
+        dentinaGroup.userData.byFdi[fdi] = dent;
+        pulpaGroup.userData.byFdi[fdi] = pulp;
+        ligamentoGroup.userData.byFdi[fdi] = pdl;
+        medidas[fdi] = { base, axis, tan, z, w, alto, grosor: p.grosor || w, largoRaiz: Math.max(...especs.map(s => s.L)) * w, buccalSign, mesialSign, nombre };
       });
+      group.userData.medidas = medidas;
       return group;
     }
 
-    // Una pieza ausente o reemplazada por implante no muestra su raíz natural.
+    // Nombre anatómico a partir del número FDI
+    function toothName(fdi) {
+      const d = fdi % 10, q = Math.floor(fdi / 10), temporal = q >= 5;
+      const perm = { 1: 'Incisivo central', 2: 'Incisivo lateral', 3: 'Canino', 4: 'Primer premolar', 5: 'Segundo premolar', 6: 'Primer molar', 7: 'Segundo molar', 8: 'Tercer molar' };
+      const temp = { 1: 'Incisivo central', 2: 'Incisivo lateral', 3: 'Canino', 4: 'Primer molar', 5: 'Segundo molar' };
+      const arcada = (q === 1 || q === 2 || q === 5 || q === 6) ? 'superior' : 'inferior';
+      const lado = (q === 1 || q === 4 || q === 5 || q === 8) ? 'derecho' : 'izquierdo';
+      return `${(temporal ? temp : perm)[d] || 'Pieza'} ${arcada} ${lado}${temporal ? ' (temporal)' : ''}`;
+    }
+
+    // Hueso alveolar: reborde continuo con festón interdental (más alto entre piezas)
+    function buildBone(medidas, orden) {
+      const up = new THREE.Vector3().fromArray(rootsGroup.userData.up).normalize();
+      const piezas = orden.filter(f => medidas[f]);
+      if (piezas.length < 2) return new THREE.Group();
+      const muestras = [];
+      piezas.forEach((f, i) => {
+        const m = medidas[f];
+        muestras.push({ m, centro: m.base.clone(), cresta: -0.14 * m.w });   // frente a la pieza: cresta más baja
+        const sig = piezas[i + 1] && medidas[piezas[i + 1]];
+        if (sig) muestras.push({ m, centro: m.base.clone().lerp(sig.base, 0.5), cresta: 0.01 * m.w, medio: true }); // septo interdental
+      });
+      const K = 18, pos = [], idx = [];
+      muestras.forEach((s, si) => {
+        const m = s.m;
+        const lateral = m.z.clone();
+        const T = 0.58 * m.grosor, L = m.largoRaiz * 1.08;
+        for (let k = 0; k < K; k++) {
+          const t = k / (K - 1);                       // recorre de vestibular a lingual por el contorno del alvéolo
+          const ang = Math.PI * t;
+          const b = Math.cos(ang) * T;
+          const prof = s.cresta - (0.12 + 0.88 * Math.sin(ang) ** 0.6) * L;
+          const ruido = 1 + 0.012 * Math.sin(si * 2.7 + k * 1.9);   // superficie ósea algo irregular
+          const v = s.centro.clone().addScaledVector(lateral, b * ruido).addScaledVector(up, (k === 0 || k === K - 1 ? s.cresta : prof) * ruido);
+          pos.push(v.x, v.y, v.z);
+        }
+      });
+      for (let s = 0; s < muestras.length - 1; s++) {
+        for (let k = 0; k < K - 1; k++) {
+          const a = s * K + k, b = a + 1, c = a + K, d = c + 1;
+          idx.push(a, c, b, b, c, d);
+        }
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      geo.setIndex(idx);
+      geo.computeVertexNormals();
+      const mesh = new THREE.Mesh(geo, DENTAL_MATERIALS.hueso);
+      mesh.userData.label = 'Hueso alveolar';
+      const g = new THREE.Group(); g.add(mesh);
+      return g;
+    }
+
+    // ---------- Numeración FDI, estado clínico, contactos y línea oclusal ----------
+    const ESTADOS = {
+      sano: { color: 0x22c55e, texto: 'Sano' },
+      patologico: { color: 0xef4444, texto: 'Patológico' },
+      observacion: { color: 0xeab308, texto: 'En observación' },
+      tratado: { color: 0x3b82f6, texto: 'Tratado' },
+      ausente: { color: 0xd4d4d8, texto: 'Ausente' },
+      protesis: { color: 0xa855f7, texto: 'Prótesis / Implante' },
+    };
+
+    // Traduce lo marcado en la ficha al código de color internacional
+    function estadoDePieza(fdi) {
+      const rec = clinicalRecords[fdi];
+      if (!rec) return 'sano';
+      if (rec.general === 'ausente') return 'ausente';
+      if (rec.general === 'implante' || rec.restoration === 'carilla' || bridges.some(b => b.start == fdi || b.end == fdi)) return 'protesis';
+      const caras = rec.faces ? Object.values(rec.faces) : [];
+      const marcas = [rec.general, rec.surgery, rec.trauma, rec.restoration, rec.pediatric].filter(Boolean);
+      const canales = rec.canales && Object.values(rec.canales).some(Boolean);
+      if (!marcas.length && !caras.length && !canales) return 'sano';
+      if (rec.status === 'realizado') return 'tratado';
+      if (rec.status === 'existente') return caras.some(s => s !== 'existente') ? 'observacion' : 'tratado';
+      return 'patologico';
+    }
+
+    const _etiquetas = new Map();
+    function etiquetaCanvas(texto, color) {
+      const clave = texto + "|" + color;
+      if (_etiquetas.has(clave)) return _etiquetas.get(clave);
+      const cv = document.createElement('canvas');
+      cv.width = 128; cv.height = 64;
+      const ctx = cv.getContext('2d');
+      ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      ctx.strokeStyle = typeof color === "number" ? "#" + color.toString(16).padStart(6, "0") : color;
+      ctx.lineWidth = 7;
+      ctx.beginPath(); ctx.roundRect(6, 10, 116, 44, 12); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#1e293b'; ctx.font = 'bold 30px system-ui, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(texto, 64, 33);
+      const tex = new THREE.CanvasTexture(cv);
+      tex.encoding = THREE.sRGBEncoding;
+      _etiquetas.set(clave, tex);
+      return tex;
+    }
+
+    function buildToothExtras(medidas) {
+      fdiLabelsGroup = new THREE.Group();
+      estadoGroup = new THREE.Group();
+      contactosGroup = new THREE.Group();
+      oclusalLineGroup = new THREE.Group();
+      const orden = getAnatomicalOrder().filter(f => medidas[f]);
+
+      orden.forEach((fdi, i) => {
+        const m = medidas[fdi];
+        // Número FDI sobre la cara oclusal
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: etiquetaCanvas(String(fdi), ESTADOS.sano.color), depthTest: false, transparent: true }));
+        sprite.position.copy(m.base).addScaledVector(m.axis, m.alto * 1.22);
+        sprite.scale.set(0.115, 0.058, 1);
+        sprite.userData.fdi = fdi;
+        fdiLabelsGroup.add(sprite);
+
+        // Anillo de estado en el cuello de la pieza
+        const anillo = new THREE.Mesh(new THREE.TorusGeometry(0.42 * m.w, 0.035 * m.w, 8, 26), new THREE.MeshBasicMaterial({ color: ESTADOS.sano.color, depthTest: false, transparent: true, opacity: 0.85 }));
+        anillo.position.copy(m.base).addScaledVector(m.axis, 0.06 * m.alto);
+        anillo.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), m.axis);
+        anillo.scale.set(1, (m.grosor / m.w) || 1, 1);
+        anillo.userData.fdi = fdi;
+        estadoGroup.add(anillo);
+
+        // Punto de contacto con la pieza siguiente
+        const sig = orden[i + 1] && medidas[orden[i + 1]];
+        if (sig) {
+          const punto = new THREE.Mesh(new THREE.SphereGeometry(0.05 * m.w, 10, 8), new THREE.MeshBasicMaterial({ color: 0x0ea5e9, depthTest: false }));
+          punto.position.copy(m.base).lerp(sig.base, 0.5).addScaledVector(m.axis, 0.72 * m.alto);
+          punto.userData.label = `Punto de contacto ${fdi}–${orden[i + 1]}`;
+          contactosGroup.add(punto);
+        }
+      });
+
+      // Línea de oclusión: recorre los bordes incisales y las cúspides vestibulares
+      const puntos = orden.map(f => medidas[f].base.clone().addScaledVector(medidas[f].axis, medidas[f].alto * 0.98));
+      if (puntos.length > 2) {
+        const curva = new THREE.CatmullRomCurve3(puntos);
+        const linea = new THREE.Mesh(new THREE.TubeGeometry(curva, 140, 0.006, 8, false), new THREE.MeshBasicMaterial({ color: 0xD4AF37 }));
+        linea.userData.label = 'Línea de oclusión';
+        oclusalLineGroup.add(linea);
+      }
+
+      fdiLabelsGroup.visible = extrasOn.fdi;
+      estadoGroup.visible = extrasOn.estado;
+      contactosGroup.visible = extrasOn.contactos;
+      oclusalLineGroup.visible = extrasOn.oclusal;
+      activeModel.add(fdiLabelsGroup, estadoGroup, contactosGroup, oclusalLineGroup);
+      updateEstadoColors();
+    }
+
+    function updateEstadoColors() {
+      if (estadoGroup) estadoGroup.children.forEach(anillo => {
+        const est = ESTADOS[estadoDePieza(anillo.userData.fdi)];
+        anillo.material.color.setHex(est.color).convertSRGBToLinear();
+      });
+      if (selectedTooth) mostrarFichaPieza(selectedTooth);   // la ficha sigue el estado actual de la pieza
+      // El número FDI lleva el color del estado en su contorno
+      if (fdiLabelsGroup) fdiLabelsGroup.children.forEach(sprite => {
+        const fdi = sprite.userData.fdi;
+        sprite.material.map = etiquetaCanvas(String(fdi), ESTADOS[estadoDePieza(fdi)].color);
+        sprite.material.needsUpdate = true;
+      });
+    }
+
+    // Una pieza ausente o reemplazada por implante no muestra su raíz ni sus estructuras internas.
     function updateRootsForRecords() {
       if (!rootsGroup) return;
       for (const [fdi, tooth] of Object.entries(rootsGroup.userData.byFdi)) {
         const rec = clinicalRecords[fdi];
-        tooth.visible = !(rec && (rec.general === 'ausente' || rec.general === 'implante'));
+        const hay = !(rec && (rec.general === 'ausente' || rec.general === 'implante'));
+        tooth.visible = hay;
+        [dentinaGroup, pulpaGroup, ligamentoGroup].forEach(g => { const o = g && g.userData.byFdi[fdi]; if (o) o.visible = hay; });
       }
+      updateEstadoColors();
     }
+
+    // ---------- Vistas, enfoque, corte y etiquetas al pasar el cursor ----------
+    const extrasOn = { fdi: true, estado: false, contactos: false, oclusal: false, enfoque: true, corte: false };
+    const clipPlane = new THREE.Plane(new THREE.Vector3(1, 0, 0), 0);
+    let camAnim = null;
+
+    window.toggleExtra = function(key) {
+      extrasOn[key] = !extrasOn[key];
+      document.getElementById(`extra-${key}`)?.classList.toggle('active', extrasOn[key]);
+      if (key === 'fdi' && fdiLabelsGroup) fdiLabelsGroup.visible = extrasOn.fdi;
+      if (key === 'estado' && estadoGroup) estadoGroup.visible = extrasOn.estado;
+      if (key === 'contactos' && contactosGroup) contactosGroup.visible = extrasOn.contactos;
+      if (key === 'oclusal' && oclusalLineGroup) oclusalLineGroup.visible = extrasOn.oclusal;
+      if (key === 'corte') applyCorte();
+    };
+
+    // Corte sagital que pasa por la pieza seleccionada (o por la línea media)
+    function applyCorte() {
+      const medidas = rootsGroup && rootsGroup.userData.medidas;
+      if (extrasOn.corte && medidas) {
+        const m = medidas[selectedTooth] || medidas[Object.keys(medidas)[0]];
+        const n = m.tan.clone().applyQuaternion(activeModel.quaternion).normalize();
+        const p = m.base.clone().applyMatrix4(activeModel.matrixWorld);
+        clipPlane.setFromNormalAndCoplanarPoint(n, p);
+      }
+      Object.values(DENTAL_MATERIALS).forEach(mat => {
+        mat.clippingPlanes = extrasOn.corte ? [clipPlane] : [];
+        mat.clipShadows = false;
+        mat.needsUpdate = true;
+      });
+    }
+
+    function baseVectores() {
+      const up = new THREE.Vector3().fromArray(rootsGroup.userData.up).normalize().applyQuaternion(activeModel.quaternion);
+      const pts = hitBoxes.children.map(h => h.position);
+      const centro = pts.reduce((a, v) => a.clone().add(v), new THREE.Vector3()).divideScalar(Math.max(1, pts.length));
+      const inc = hitBoxes.children.filter(h => h.userData.fdi % 10 <= 1).map(h => h.position);
+      const frente = inc.reduce((a, v) => a.clone().add(v), new THREE.Vector3()).divideScalar(Math.max(1, inc.length)).sub(centro);
+      frente.addScaledVector(up, -frente.dot(up)).normalize();
+      const lado = new THREE.Vector3().crossVectors(up, frente).normalize();
+      return { up, centro, frente, lado };
+    }
+
+    function volarCamara(pos, target, ms = 700) {
+      camAnim = { desde: camera.position.clone(), haciaPos: pos, desdeT: controls.target.clone(), haciaT: target, t: 0, ms, t0: performance.now() };
+    }
+
+    window.setVista = function(nombre) {
+      if (!rootsGroup || !activeModel) return;
+      const { up, centro, frente, lado } = baseVectores();
+      const d = nombre === 'oclusal' ? 3.3 : 3.0;
+      const destino = centro.clone();
+      let pos;
+      if (nombre === 'frontal') pos = centro.clone().addScaledVector(frente, d).addScaledVector(up, 0.3);
+      else if (nombre === 'derecha') pos = centro.clone().addScaledVector(lado, d).addScaledVector(up, 0.2);
+      else if (nombre === 'izquierda') pos = centro.clone().addScaledVector(lado, -d).addScaledVector(up, 0.2);
+      else if (nombre === 'oclusal') pos = centro.clone().addScaledVector(up, d);
+      else pos = centro.clone().addScaledVector(frente, d * 0.8).addScaledVector(lado, d * 0.6).addScaledVector(up, d * 0.4);
+      camera.up.copy(nombre === 'oclusal' ? frente.clone().negate() : up);
+      volarCamara(pos, destino);
+      document.querySelectorAll('.vista-chip').forEach(b => b.classList.toggle('active', b.dataset.vista === nombre));
+    };
+
+    // Al elegir una pieza, acercarla y centrarla
+    function enfocarPieza(fdi) {
+      if (!extrasOn.enfoque || !rootsGroup) return;
+      const medidas = rootsGroup.userData.medidas, m = medidas && medidas[fdi];
+      if (!m) return;
+      const { up } = baseVectores();
+      const centro = m.base.clone().applyMatrix4(activeModel.matrixWorld).addScaledVector(up, m.alto * 0.5);
+      const dir = camera.position.clone().sub(controls.target).normalize();
+      volarCamara(centro.clone().addScaledVector(dir, Math.max(1.35, m.w * 7)), centro, 600);
+    }
+
+    window.toggleAnatomyBar = function() {
+      const bar = document.getElementById('anatomy-bar');
+      const abierta = bar.classList.toggle('open');
+      document.getElementById('btn-anatomy').classList.toggle('active', abierta);
+    };
+
+    function ocultarFicha() {
+      const card = document.getElementById('tooth-card');
+      if (card) card.style.display = 'none';
+    }
+
+    // Ficha de la pieza seleccionada
+    function mostrarFichaPieza(fdi) {
+      const card = document.getElementById('tooth-card');
+      const medidas = rootsGroup && rootsGroup.userData.medidas;
+      if (!card || !medidas || !medidas[fdi]) { if (card) card.style.display = 'none'; return; }
+      const superior = currentArch === 'superior', temporal = currentMode === 'temporal';
+      const especs = rootMorphology(fdi, superior, temporal);
+      const est = ESTADOS[estadoDePieza(fdi)];
+      const d = fdi % 10;
+      const tipo = temporal ? (d <= 2 ? 'Incisivo temporal' : d === 3 ? 'Canino temporal' : 'Molar temporal')
+        : (d <= 2 ? 'Incisivo' : d === 3 ? 'Canino' : d <= 5 ? 'Premolar' : 'Molar');
+      card.style.display = 'block';
+      document.getElementById('card-fdi').innerText = `Pieza ${fdi}`;
+      document.getElementById('card-nombre').innerText = medidas[fdi].nombre;
+      document.getElementById('card-tipo').innerText = tipo;
+      document.getElementById('card-estado').innerHTML = `<i class="anat-swatch" style="background:#${est.color.toString(16).padStart(6, '0')}"></i>${est.texto}`;
+      document.getElementById('card-raices').innerText = especs.length;
+      document.getElementById('card-conductos').innerText = especs.length + (especs.length > 1 && !superior && d >= 6 ? 1 : 0);
+    }
+
+    const ZONA_LABEL = ['Encía insertada', 'Encía marginal', 'Cúspide / borde incisal', 'Surco central', 'Cara de la corona', 'Cuello cervical', 'Superficie radicular'];
+    const tooltip = document.getElementById('anat-tooltip');
+    const hoverRay = new THREE.Raycaster();
+    let hoverT = 0;
+
+    function objetosAnatomicos() {
+      const lista = [...meshTargets];
+      for (const g of [rootsGroup, dentinaGroup, pulpaGroup, ligamentoGroup, huesoGroup]) {
+        if (g && g.visible) lista.push(...g.children);
+      }
+      return lista.filter(o => o.visible);
+    }
+
+    window.addEventListener('pointermove', (e) => {
+      if (!tooltip || !activeModel) return;
+      if (e.target.closest('#top-bar, #specialty-rail, #bottom-sheet, #layer-floating-bar, #anatomy-bar, .modal-overlay')) { tooltip.style.display = 'none'; return; }
+      const ahora = performance.now();
+      if (ahora - hoverT < 60) return;                 // no hace falta calcularlo en cada pixel
+      hoverT = ahora;
+      const mouseV = new THREE.Vector2((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
+      hoverRay.setFromCamera(mouseV, camera);
+      const hit = hoverRay.intersectObjects(objetosAnatomicos(), true)[0];
+      if (!hit) { tooltip.style.display = 'none'; return; }
+      let texto = hit.object.userData.label;
+      if (!texto && hit.face) {
+        const zona = hit.object.geometry.attributes._zona;
+        const idx = zona ? Math.round(zona.getX(hit.face.a)) : -1;
+        texto = ZONA_LABEL[idx] || null;
+      }
+      if (!texto && hit.object.parent && hit.object.parent.userData.label) texto = hit.object.parent.userData.label;
+      if (!texto) { tooltip.style.display = 'none'; return; }
+      tooltip.textContent = texto;
+      tooltip.style.display = 'block';
+      tooltip.style.left = Math.min(window.innerWidth - 220, e.clientX + 14) + 'px';
+      tooltip.style.top = (e.clientY + 16) + 'px';
+    });
 
     function getAnatomicalOrder() {
       return (currentMode === 'temporal')
@@ -1301,6 +1832,7 @@
         if (maxDim > 0 && (maxDim < 0.5 || maxDim > 5.0)) activeModel.scale.setScalar(2.0 / maxDim);
         activeModel.updateMatrixWorld(true);
 
+        enamelMeshes = []; gumMeshes = [];
         activeModel.traverse(c => {
           if (c.isMesh) {
             meshTargets.push(c);
@@ -1312,6 +1844,7 @@
                 if (original.normalMap && mat.normalMap !== original.normalMap) { mat.normalMap = original.normalMap; mat.needsUpdate = true; }
                 c.material = mat;
                 c.renderOrder = tipo === 'encia' ? 2 : 0;
+                (tipo === 'encia' ? gumMeshes : enamelMeshes).push(c);
                 original.dispose();
               } else {
                 c.material.side = THREE.DoubleSide;
@@ -1326,9 +1859,11 @@
 
         if (rootsData) {
           rootsGroup = buildRoots(rootsData);
-          activeModel.add(rootsGroup);
+          huesoGroup = buildBone(rootsGroup.userData.medidas, getAnatomicalOrder());
+          activeModel.add(rootsGroup, dentinaGroup, pulpaGroup, ligamentoGroup, huesoGroup);
+          buildToothExtras(rootsGroup.userData.medidas);
         }
-        applyRootsVisibility();
+        applyAnatomyVisibility();
 
         camera.position.set(0, currentArch === 'inferior' ? 3.2 : -3.2, 1.4);
         camera.lookAt(0, 0, 0);
@@ -2943,6 +3478,9 @@
     function selectTooth(fdi) {
       selectedTooth = fdi;
       document.getElementById('lbl-piece').innerText = fdi;
+      mostrarFichaPieza(fdi);
+      enfocarPieza(fdi);
+      if (extrasOn.corte) applyCorte();
       document.getElementById('bottom-sheet').classList.remove('minimized');
       updateUIState();
       renderAllLayers();
@@ -2950,6 +3488,7 @@
 
     window.setDentitionMode = function(m) {
       currentMode = m;
+      ocultarFicha();
       document.getElementById('btn-mode-adult').classList.toggle('active', m === 'adult');
       document.getElementById('btn-mode-temp').classList.toggle('active', m === 'temporal');
       selectedTooth = null;
@@ -2959,6 +3498,7 @@
     };
 
     window.setArch = function(a) {
+      ocultarFicha();
       currentArch = a;
       document.getElementById('btn-arch-inf').classList.toggle('active', a === 'inferior');
       document.getElementById('btn-arch-sup').classList.toggle('active', a === 'superior');
@@ -2980,6 +3520,13 @@
 
     function animate() {
       requestAnimationFrame(animate);
+      if (camAnim) {                                   // vuelo suave de cámara entre vistas
+        const k = Math.min(1, (performance.now() - camAnim.t0) / camAnim.ms);
+        const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+        camera.position.lerpVectors(camAnim.desde, camAnim.haciaPos, e);
+        controls.target.lerpVectors(camAnim.desdeT, camAnim.haciaT, e);
+        if (k >= 1) camAnim = null;
+      }
       controls.update();
       renderer.render(scene, camera);
     }
