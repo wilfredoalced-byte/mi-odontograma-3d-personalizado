@@ -161,6 +161,26 @@ Cómo está hecho: `estadoFicha()` junta en un objeto las variables donde vive l
 
 ⚠️ **Privacidad:** la copia automática incluye el nombre, el DNI y el teléfono del paciente, y queda en el navegador de ese equipo (no se envía a ningún servidor). En un equipo compartido conviene usar **Borrar copia de este equipo** al terminar la jornada.
 
+
+## Trabajo clínico: plan por fases, documentos y registro
+
+- **Plan en fases.** El presupuesto se agrupa solo en Fase 1 (urgencias y saneamiento), Fase 2 (rehabilitación) y Fase 3 (estética, ortodoncia y mantenimiento), con subtotal por fase. Aparece así tanto en pantalla como en los PDF.
+- **Presupuesto como documento aparte** (botón dentro del presupuesto): hoja propia con las fases, el total, la validez de 30 días y las líneas de firma. Es lo que se le entrega al paciente.
+- **Periodontograma en la Historia Clínica.** Página con los 6 sitios por pieza (profundidad / recesión, punto de sangrado), movilidad, furca y el resumen: sitios registrados, porcentaje de sangrado y bolsas de 4 mm o más.
+- **Consentimientos por procedimiento.** Según lo marcado se añaden los textos que corresponden —exodoncia, endodoncia, implante, prótesis, ortodoncia o estética— con sus riesgos, y las dos líneas de firma.
+- **Registro fotográfico.** Cada pieza admite una foto (en tablet abre la cámara). Se guarda reducida a 900 px en JPEG, se ve en la ficha de la pieza y sale en el informe con su fecha.
+- **Fecha y hora por pieza.** Cada vez que cambia lo marcado de una pieza se guarda la hora; se muestra en su ficha.
+- **Avisos de coherencia.** Sin bloquear nada, advierten de combinaciones que suelen ser un error: pieza ausente con tratamientos, implante con endodoncia, exodoncia junto a restauración, pilar de puente ausente.
+
+## Herramientas del consultorio
+
+- **Tarifa editable.** Panel de precios por especialidad; se guarda en el equipo y manda sobre los precios de referencia. Permite exportar e importar la tarifa y volver a los valores de referencia.
+- **Modo paciente.** Oculta toda la interfaz clínica y deja solo el modelo, para explicar el tratamiento en el sillón. Se sale con Esc o con el botón.
+- **Comparar con una visita anterior.** Se abre la ficha guardada de otra cita y se listan los cambios (nuevo, tratado, resuelto, cambió), además de marcar esas piezas con un anillo de color sobre el modelo.
+- **Etiquetas en tablet.** Las etiquetas anatómicas, que antes solo salían al pasar el cursor, ahora aparecen al mantener el dedo sobre el modelo.
+- **Funciona sin internet.** `manifest.webmanifest` y `sw.js` hacen que la aplicación se pueda instalar en la tablet y que abra y cargue los modelos aunque se caiga la conexión (probado desconectando la red tras la primera visita).
+- **Carga progresiva.** Primero se muestra la malla ligera y, cuando llega, se cambia por la detallada; la malla-proxy se reutiliza, así que se puede tocar una pieza desde el primer segundo.
+
 ## Deploy
 
 ### Opción A — GitHub Pages (recomendado, workflow ya incluido)

@@ -163,6 +163,15 @@
       color: #fff; font-size: 9.5px; font-weight: 800; text-transform: uppercase;
       padding: 2px 7px; border-radius: 999px; letter-spacing: 0.5px;
     }
+    #card-foto img {
+      width: 100%; border-radius: 8px; border: 1px solid var(--border-color); cursor: zoom-in; display: block;
+    }
+    #foto-grande {
+      position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+      background: rgba(15, 23, 42, 0.78); z-index: 220; cursor: zoom-out; padding: 24px;
+    }
+    #foto-grande img { max-width: 90vw; max-height: 80vh; border-radius: 10px; display: block; }
+    #foto-grande .pie { color: #fff; font-size: 12px; margin-top: 8px; text-align: center; }
     #aviso-ficha {
       position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: none; z-index: 150;
       background: rgba(15,23,42,0.92); color: #fff; font-size: 12px; font-weight: 600;
@@ -899,7 +908,8 @@
         <button class="touch-btn btn-pdf" onclick="closeBudgetModal(); openConsentModal('pdf');">📄 Descargar Historia Clínica</button>
       </div>
       <div class="modal-btns" style="margin-top:6px;">
-        <button class="touch-btn" style="width:100%;" onclick="closeBudgetModal(); abrirPrecios();">🏷️ Editar lista de precios</button>
+        <button class="touch-btn btn-pdf" style="flex:1;" onclick="generarPresupuestoPDF()">🧾 Descargar presupuesto</button>
+        <button class="touch-btn" style="flex:1;" onclick="closeBudgetModal(); abrirPrecios();">🏷️ Editar precios</button>
       </div>
     </div>
   </div>
@@ -1092,6 +1102,13 @@
     </div>
   </div>
 
+  <div id="foto-grande" onclick="cerrarFoto()">
+    <div>
+      <img alt="Foto clínica ampliada">
+      <div class="pie"></div>
+    </div>
+  </div>
+
   <div id="anat-tooltip"></div>
   <div id="tooth-card">
     <h4 id="card-fdi">—</h4>
@@ -1101,6 +1118,14 @@
     <div class="fila"><span>Raíces</span><strong id="card-raices"></strong></div>
     <div class="fila"><span>Conductos</span><strong id="card-conductos"></strong></div>
     <div class="fila" id="card-fila-registro" style="display:none;"><span>Registrado</span><strong id="card-registro"></strong></div>
+    <div id="card-foto" style="display:none; margin-top:8px;">
+      <img id="card-foto-img" onclick="verFoto()" alt="Foto de la pieza">
+      <button class="anat-chip" style="width:100%; margin-top:6px;" onclick="quitarFoto()">🗑️ Quitar foto</button>
+    </div>
+    <label class="anat-chip" id="card-foto-btn" style="display:block; text-align:center; margin-top:8px; cursor:pointer;">
+      📷 Agregar foto de la pieza
+      <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="agregarFoto(this)">
+    </label>
   </div>
 
   <div id="status">Iniciando visor 3D...</div>
@@ -1902,7 +1927,7 @@
         modo: currentMode, arcada: currentArch,
         clinicalRecords, perioRecords, bridges, removableRecords, occlusionRecords,
         atmRecords, esteticaRecords, pediatricRecords, orthoRecords,
-        medicalAlerts, registrosGenerales, marcasTiempo,
+        medicalAlerts, registrosGenerales, marcasTiempo, fotosPiezas,
         formulario: leerFormulario(),
       };
     }
@@ -1929,6 +1954,7 @@
       volcar(medicalAlerts, f.medicalAlerts);
       volcar(registrosGenerales, f.registrosGenerales);
       volcar(marcasTiempo, f.marcasTiempo);
+      if (f.fotosPiezas) volcar(fotosPiezas, f.fotosPiezas);
       if (f.formulario) CAMPOS_FORMULARIO.forEach(id => { const el = document.getElementById(id); if (el && f.formulario[id] !== undefined) el.value = f.formulario[id]; });
 
       // Botones de alertas y registros generales
@@ -1959,7 +1985,7 @@
 
     function registrarCambio() {
       if (restaurando) return;
-      const foto = JSON.stringify(estadoFicha(), (k, v) => (k === 'guardadoEn' || k === 'marcasTiempo') ? undefined : v);
+      const foto = JSON.stringify(estadoFicha(), (k, v) => (k === 'guardadoEn' || k === 'marcasTiempo' || k === 'fotosPiezas') ? undefined : v);
       sellarPiezasCambiadas(historial[posHistorial], foto);
       if (historial[posHistorial] === foto) return;
       historial.splice(posHistorial + 1);
@@ -2544,6 +2570,9 @@
       document.getElementById('card-estado').innerHTML = `<i class="anat-swatch" style="background:#${est.color.toString(16).padStart(6, '0')}"></i>${est.texto}`;
       document.getElementById('card-raices').innerText = especs.length;
       document.getElementById('card-conductos').innerText = especs.length + (especs.length > 1 && !superior && d >= 6 ? 1 : 0);
+      const foto = fotosPiezas[fdi];
+      document.getElementById('card-foto').style.display = foto ? 'block' : 'none';
+      if (foto) document.getElementById('card-foto-img').src = foto.datos;
       const sello = marcasTiempo[fdi];
       const filaSello = document.getElementById('card-fila-registro');
       if (filaSello) {
@@ -3283,38 +3312,72 @@
 
       for (const [fdi, rec] of Object.entries(clinicalRecords)) {
         if (rec.status === 'existente') continue;
-        if (rec.general && ARANCELES[rec.general]) { items.push({ item: `Pz ${fdi}: ${rec.general.toUpperCase()}`, price: ARANCELES[rec.general] }); total += ARANCELES[rec.general]; }
-        if (rec.surgery && ARANCELES[rec.surgery]) { items.push({ item: `Pz ${fdi}: ${rec.surgery.toUpperCase()}`, price: ARANCELES[rec.surgery] }); total += ARANCELES[rec.surgery]; }
-        if (rec.trauma && ARANCELES[`trauma_${rec.trauma}`]) { items.push({ item: `Pz ${fdi}: Trauma ${rec.trauma}`, price: ARANCELES[`trauma_${rec.trauma}`] }); total += ARANCELES[`trauma_${rec.trauma}`]; }
-        if (rec.malposition && ARANCELES.malposicion_correccion) { items.push({ item: `Pz ${fdi}: ${rec.malposition}`, price: ARANCELES.malposicion_correccion }); total += ARANCELES.malposicion_correccion; }
-        if (rec.restoration && ARANCELES[rec.restoration]) { items.push({ item: `Pz ${fdi}: ${rec.restoration.toUpperCase()}`, price: ARANCELES[rec.restoration] }); total += ARANCELES[rec.restoration]; }
-        if (rec.pediatric && ARANCELES[rec.pediatric]) { items.push({ item: `Pz ${fdi}: ${rec.pediatric.toUpperCase()}`, price: ARANCELES[rec.pediatric] }); total += ARANCELES[rec.pediatric]; }
+        if (rec.general && ARANCELES[rec.general]) { items.push({ item: `Pz ${fdi}: ${rec.general.toUpperCase()}`, price: ARANCELES[rec.general], clave: rec.general, fdi }); total += ARANCELES[rec.general]; }
+        if (rec.surgery && ARANCELES[rec.surgery]) { items.push({ item: `Pz ${fdi}: ${rec.surgery.toUpperCase()}`, price: ARANCELES[rec.surgery], clave: rec.surgery, fdi }); total += ARANCELES[rec.surgery]; }
+        if (rec.trauma && ARANCELES[`trauma_${rec.trauma}`]) { items.push({ item: `Pz ${fdi}: Trauma ${rec.trauma}`, price: ARANCELES[`trauma_${rec.trauma}`], clave: `trauma_${rec.trauma}`, fdi }); total += ARANCELES[`trauma_${rec.trauma}`]; }
+        if (rec.malposition && ARANCELES.malposicion_correccion) { items.push({ item: `Pz ${fdi}: ${rec.malposition}`, price: ARANCELES.malposicion_correccion, clave: 'malposicion_correccion', fdi }); total += ARANCELES.malposicion_correccion; }
+        if (rec.restoration && ARANCELES[rec.restoration]) { items.push({ item: `Pz ${fdi}: ${rec.restoration.toUpperCase()}`, price: ARANCELES[rec.restoration], clave: rec.restoration, fdi }); total += ARANCELES[rec.restoration]; }
+        if (rec.pediatric && ARANCELES[rec.pediatric]) { items.push({ item: `Pz ${fdi}: ${rec.pediatric.toUpperCase()}`, price: ARANCELES[rec.pediatric], clave: rec.pediatric, fdi }); total += ARANCELES[rec.pediatric]; }
         if (rec.faces) {
           const diag = Object.values(rec.faces).filter(s => s !== 'existente').length;
-          if (diag > 0) { const sub = diag * ARANCELES.resina; items.push({ item: `Pz ${fdi}: Resina (${diag} caras)`, price: sub }); total += sub; }
+          if (diag > 0) { const sub = diag * ARANCELES.resina; items.push({ item: `Pz ${fdi}: Resina (${diag} caras)`, price: sub, clave: 'resina', fdi }); total += sub; }
         }
         if (rec.canales && Object.values(rec.canales).some(v => v)) {
           const esMolar = getToothType(parseInt(fdi)) !== 'unico';
           const price = esMolar ? ARANCELES.endo_molar : ARANCELES.endo_unico;
-          items.push({ item: `Pz ${fdi}: Endodoncia ${esMolar ? 'Multirradicular' : 'Unirradicular'}`, price });
+          items.push({ item: `Pz ${fdi}: Endodoncia ${esMolar ? 'Multirradicular' : 'Unirradicular'}`, price, clave: esMolar ? 'endo_molar' : 'endo_unico', fdi });
           total += price;
         }
       }
 
       ['inferior', 'superior'].forEach(archKey => {
-        if (removableRecords[archKey].type) { const p = ARANCELES.ppr_esqueletica; items.push({ item: `PPR (${archKey})`, price: p }); total += p; }
-        if (occlusionRecords[archKey].splint) { items.push({ item: `Férula Miorrelajante (${archKey})`, price: ARANCELES.plano_miorrelajante }); total += ARANCELES.plano_miorrelajante; }
-        if (esteticaRecords[archKey].bleaching) { items.push({ item: `Blanqueamiento (${archKey})`, price: ARANCELES.blanqueamiento_arcada }); total += ARANCELES.blanqueamiento_arcada; }
-        if (pediatricRecords[archKey]?.fluorArch) { items.push({ item: `Flúor Arcada Completa (${archKey})`, price: ARANCELES.fluor_arcada }); total += ARANCELES.fluor_arcada; }
-        if (orthoRecords[archKey]?.wire && orthoRecords[archKey]?.wire !== 'none') { items.push({ item: `Arco Ortodóntico (${archKey})`, price: ARANCELES.arco_orto }); total += ARANCELES.arco_orto; }
-        if (orthoRecords[archKey]?.aparatoFuncional) { items.push({ item: `Aparato Funcional — ${orthoRecords[archKey].aparatoFuncional} (${archKey})`, price: ARANCELES.aparato_funcional }); total += ARANCELES.aparato_funcional; }
-        if (orthoRecords[archKey]?.retenedor && orthoRecords[archKey]?.retenedor !== 'retirado') { items.push({ item: `Retenedor — ${orthoRecords[archKey].retenedor} (${archKey})`, price: ARANCELES.retenedor }); total += ARANCELES.retenedor; }
+        if (removableRecords[archKey].type) { const p = ARANCELES.ppr_esqueletica; items.push({ item: `PPR (${archKey})`, price: p, clave: 'ppr_esqueletica' }); total += p; }
+        if (occlusionRecords[archKey].splint) { items.push({ item: `Férula Miorrelajante (${archKey})`, price: ARANCELES.plano_miorrelajante, clave: 'plano_miorrelajante' }); total += ARANCELES.plano_miorrelajante; }
+        if (esteticaRecords[archKey].bleaching) { items.push({ item: `Blanqueamiento (${archKey})`, price: ARANCELES.blanqueamiento_arcada, clave: 'blanqueamiento_arcada' }); total += ARANCELES.blanqueamiento_arcada; }
+        if (pediatricRecords[archKey]?.fluorArch) { items.push({ item: `Flúor Arcada Completa (${archKey})`, price: ARANCELES.fluor_arcada, clave: 'fluor_arcada' }); total += ARANCELES.fluor_arcada; }
+        if (orthoRecords[archKey]?.wire && orthoRecords[archKey]?.wire !== 'none') { items.push({ item: `Arco Ortodóntico (${archKey})`, price: ARANCELES.arco_orto, clave: 'arco_orto' }); total += ARANCELES.arco_orto; }
+        if (orthoRecords[archKey]?.aparatoFuncional) { items.push({ item: `Aparato Funcional — ${orthoRecords[archKey].aparatoFuncional} (${archKey})`, price: ARANCELES.aparato_funcional, clave: 'aparato_funcional' }); total += ARANCELES.aparato_funcional; }
+        if (orthoRecords[archKey]?.retenedor && orthoRecords[archKey]?.retenedor !== 'retirado') { items.push({ item: `Retenedor — ${orthoRecords[archKey].retenedor} (${archKey})`, price: ARANCELES.retenedor, clave: 'retenedor' }); total += ARANCELES.retenedor; }
       });
 
-      if (registrosGenerales.profilaxis) { items.push({ item: 'Profilaxis (boca completa)', price: ARANCELES.profilaxis }); total += ARANCELES.profilaxis; }
+      if (registrosGenerales.profilaxis) { items.push({ item: 'Profilaxis (boca completa)', price: ARANCELES.profilaxis, clave: 'profilaxis' }); total += ARANCELES.profilaxis; }
 
       document.getElementById('btn-top-budget').innerText = `💰 S/ ${total.toLocaleString('es-PE')}`;
       return { total, items };
+    }
+
+    // El plan se ordena en fases, que es como se presenta y como se cobra.
+    const FASES = [
+      { n: 1, titulo: 'Fase 1 · Urgencias y saneamiento',
+        claves: ['caries', 'resina', 'exodoncia', 'resto_radicular', 'impactado', 'lesion', 'lesion_apicectomia',
+                 'endodoncia', 'endo_unico', 'endo_molar', 'pulpotomia', 'pulpectomia', 'profilaxis',
+                 'gingivectomia', 'colgajo', 'rtg_perio', 'alargamiento', 'sellante', 'fluor_focal', 'fluor_arcada',
+                 'trauma_incompleta', 'trauma_pulpar', 'trauma_radicular'] },
+      { n: 2, titulo: 'Fase 2 · Rehabilitación',
+        claves: ['corona', 'implante', 'perno', 'perno_munon', 'inlay', 'onlay', 'overlay', 'puente_tramo',
+                 'protesis_total', 'ppr_esqueletica', 'ppr_flexible', 'gancho_ppr', 'mantenedor',
+                 'bloque', 'seno', 'rog'] },
+      { n: 3, titulo: 'Fase 3 · Estética, ortodoncia y mantenimiento',
+        claves: ['carilla', 'blanqueamiento_arcada', 'bracket_metal', 'bracket_zafiro', 'arco_orto',
+                 'aparato_funcional', 'retenedor', 'plano_miorrelajante', 'malposicion_correccion',
+                 'rehabilitacion_faceta'] },
+    ];
+
+    function faseDe(clave) {
+      const f = FASES.find(f => f.claves.includes(clave));
+      return f ? f.n : 2;                      // lo que no esté clasificado va a rehabilitación
+    }
+
+    // Agrupa el presupuesto en fases, con subtotal por fase
+    function presupuestoPorFases() {
+      const budget = calculateBudget();
+      const grupos = FASES.map(f => ({ ...f, items: [], subtotal: 0 }));
+      budget.items.forEach(it => {
+        const g = grupos.find(g => g.n === faseDe(it.clave));
+        g.items.push(it);
+        g.subtotal += it.price;
+      });
+      return { grupos: grupos.filter(g => g.items.length), total: budget.total };
     }
 
     // Periodoncia 6 Sitios
@@ -3978,6 +4041,275 @@
       else syncToGHL(pName, pId, dName, sigData, pPhone);
     };
 
+    // ---------- Fotos clínicas por pieza ----------
+    // Se guardan reducidas (lado máximo 900 px, JPEG) para que la ficha siga siendo liviana.
+    const fotosPiezas = {};
+
+    function encogerImagen(archivo, ladoMax = 900) {
+      return new Promise((resolve, reject) => {
+        const lector = new FileReader();
+        lector.onerror = reject;
+        lector.onload = () => {
+          const img = new Image();
+          img.onerror = reject;
+          img.onload = () => {
+            const escala = Math.min(1, ladoMax / Math.max(img.width, img.height));
+            const lienzo = document.createElement('canvas');
+            lienzo.width = Math.round(img.width * escala);
+            lienzo.height = Math.round(img.height * escala);
+            lienzo.getContext('2d').drawImage(img, 0, 0, lienzo.width, lienzo.height);
+            resolve(lienzo.toDataURL('image/jpeg', 0.72));
+          };
+          img.src = lector.result;
+        };
+        lector.readAsDataURL(archivo);
+      });
+    }
+
+    window.agregarFoto = async function(input) {
+      const archivo = input.files && input.files[0];
+      input.value = '';
+      if (!archivo || !selectedTooth) return;
+      try {
+        const datos = await encogerImagen(archivo);
+        fotosPiezas[selectedTooth] = { datos, fecha: Date.now() };
+        mostrarFichaPieza(selectedTooth);
+        registrarCambio();
+        avisoFicha(`Foto guardada en la pieza ${selectedTooth}`);
+      } catch (e) { alert('No se pudo leer esa imagen.'); }
+    };
+
+    window.quitarFoto = function() {
+      if (!selectedTooth || !fotosPiezas[selectedTooth]) return;
+      delete fotosPiezas[selectedTooth];
+      mostrarFichaPieza(selectedTooth);
+      registrarCambio();
+    };
+
+    window.verFoto = function() {
+      const f = fotosPiezas[selectedTooth];
+      if (!f) return;
+      const visor = document.getElementById('foto-grande');
+      visor.querySelector('img').src = f.datos;
+      visor.querySelector('.pie').textContent = `Pieza ${selectedTooth} · ${new Date(f.fecha).toLocaleString('es-PE')}`;
+      visor.style.display = 'flex';
+    };
+    window.cerrarFoto = function() { document.getElementById('foto-grande').style.display = 'none'; };
+
+    // Las fotos se añaden al informe, una página con hasta seis por hoja
+    function agregarFotos(doc) {
+      const piezas = Object.keys(fotosPiezas).sort((a, b) => a - b);
+      if (!piezas.length) return;
+      doc.addPage();
+      doc.setFillColor(190, 18, 60);
+      doc.rect(0, 0, 210, 20, "F");
+      doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+      doc.text("REGISTRO FOTOGRÁFICO", 14, 13);
+      doc.setFontSize(9); doc.text("FASSIARA", 196, 13, { align: "right" });
+      const ancho = 58, alto = 44;
+      piezas.forEach((fdi, i) => {
+        const col = i % 3, fila = Math.floor(i / 3) % 4;
+        if (i > 0 && i % 12 === 0) doc.addPage();
+        const x = 14 + col * (ancho + 6);
+        const y = 28 + fila * (alto + 12);
+        try { doc.addImage(fotosPiezas[fdi].datos, "JPEG", x, y, ancho, alto); } catch (e) { /* imagen ilegible */ }
+        doc.setFontSize(8); doc.setTextColor(30, 41, 59); doc.setFont("helvetica", "bold");
+        doc.text(`Pieza ${fdi}`, x, y + alto + 4);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(100, 116, 139);
+        doc.text(new Date(fotosPiezas[fdi].fecha).toLocaleDateString("es-PE"), x, y + alto + 8);
+      });
+    }
+
+    // ================= Documentos clínicos =================
+    const SITIOS_PERIO = [["mv", "MV"], ["v", "V"], ["dv", "DV"], ["ml", "ML"], ["l", "L/P"], ["dl", "DL"]];
+
+    // Periodontograma: profundidad, recesión y sangrado en los 6 sitios de cada pieza
+    function datosPeriodontograma() {
+      const filas = [];
+      let sitios = 0, sangrantes = 0, profundos = 0;
+      Object.keys(perioRecords).sort((a, b) => a - b).forEach(fdi => {
+        const r = perioRecords[fdi] || {};
+        const ps = r.depths || {}, rec = r.recession || {}, bop = r.bop || {};
+        const tieneAlgo = SITIOS_PERIO.some(([k]) => ps[k] || rec[k] || bop[k]) || r.movilidad || r.furca;
+        if (!tieneAlgo) return;
+        const fila = [fdi];
+        SITIOS_PERIO.forEach(([k]) => {
+          const p = ps[k] || 2, re = rec[k] || 0;
+          sitios++;
+          if (bop[k]) sangrantes++;
+          if (p >= 4) profundos++;
+          fila.push(`${p}${re ? "/" + re : ""}${bop[k] ? " •" : ""}`);
+        });
+        fila.push("G" + (r.movilidad || 0));
+        fila.push("F" + (r.furca || 0));
+        filas.push(fila);
+      });
+      return { filas, sitios, sangrantes, profundos };
+    }
+
+    function agregarPeriodontograma(doc) {
+      const datos = datosPeriodontograma();
+      if (!datos.filas.length) return;
+      doc.addPage();
+      doc.setFillColor(190, 18, 60);
+      doc.rect(0, 0, 210, 20, "F");
+      doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+      doc.text("PERIODONTOGRAMA", 14, 13);
+      doc.setFontSize(9); doc.text("FASSIARA", 196, 13, { align: "right" });
+
+      doc.setTextColor(71, 85, 105); doc.setFont("helvetica", "normal"); doc.setFontSize(8);
+      const bop = datos.sitios ? Math.round((datos.sangrantes / datos.sitios) * 100) : 0;
+      doc.text(`Sitios registrados: ${datos.sitios}  |  Sangrado al sondaje: ${datos.sangrantes} (${bop}%)  |  Bolsas de 4 mm o mas: ${datos.profundos}`, 14, 27);
+      doc.text("Cada celda: profundidad de sondaje / recesión en mm. El punto (•) indica sangrado al sondaje.", 14, 32);
+
+      doc.autoTable({
+        startY: 36,
+        head: [["Pieza", "MV", "V", "DV", "ML", "L/P", "DL", "Movilidad", "Furca"]],
+        body: datos.filas,
+        theme: "grid",
+        headStyles: { fillColor: [190, 18, 60], fontSize: 8 },
+        styles: { fontSize: 8, cellPadding: 1.8, halign: "center" },
+        columnStyles: { 0: { fontStyle: "bold" } },
+      });
+
+      const y = doc.lastAutoTable.finalY + 8;
+      doc.setFontSize(7.5); doc.setTextColor(100, 116, 139);
+      doc.text("Referencia: movilidad G0-G3 (Miller); furca F0-F3 (Hamp). Registro tomado con el odontograma 3D.", 14, y);
+    }
+
+    // Consentimientos específicos según lo que esté marcado
+    const CONSENTIMIENTOS = [
+      { clave: "exodoncia", titulo: "Exodoncia (extracción dental)",
+        texto: "Se me ha explicado que la extracción puede cursar con dolor, inflamación y sangrado en los días siguientes, y que existen riesgos poco frecuentes como infección, alveolitis, lesión de nervios vecinos con alteración temporal o permanente de la sensibilidad, comunicación con el seno maxilar en piezas superiores y fractura de raíces o del hueso vecino." },
+      { clave: "endodoncia", titulo: "Endodoncia (tratamiento de conductos)",
+        texto: "Entiendo que el tratamiento de conductos busca conservar la pieza, que puede requerir más de una sesión y que existen riesgos como dolor posoperatorio, fractura de instrumentos dentro del conducto, perforación radicular, persistencia de la infección y necesidad futura de retratamiento, apicectomía o extracción. Se me ha indicado que la pieza tratada suele necesitar una corona posterior." },
+      { clave: "implante", titulo: "Implante dental",
+        texto: "Se me ha informado que la colocación del implante es una cirugía, que la integración con el hueso no está garantizada y que puede fallar, y que existen riesgos de infección, lesión de nervios o del seno maxilar, pérdida ósea y necesidad de injertos. Acepto cumplir los controles y la higiene indicados." },
+      { clave: "protesis", titulo: "Prótesis fija o removible",
+        texto: "Comprendo que la preparación de las piezas para prótesis fija es irreversible, que puede aparecer sensibilidad, que las prótesis removibles requieren un período de adaptación y ajustes, y que su duración depende del cuidado, la higiene y los controles periódicos." },
+      { clave: "ortodoncia", titulo: "Ortodoncia",
+        texto: "Entiendo que el tratamiento de ortodoncia es prolongado, que requiere higiene estricta y controles periódicos, y que existen riesgos de descalcificación del esmalte, reabsorción radicular, problemas en la articulación y recidiva si no se usan los retenedores indicados." },
+      { clave: "estetica", titulo: "Tratamiento estético (blanqueamiento o carillas)",
+        texto: "Se me ha explicado que el blanqueamiento puede provocar sensibilidad temporal y que el resultado varía según cada paciente; y que las carillas implican desgaste del esmalte, son irreversibles y pueden fracturarse o despegarse con el uso." },
+    ];
+
+    // Qué consentimientos corresponden a lo marcado en la ficha
+    function consentimientosAplicables() {
+      const claves = new Set();
+      Object.values(clinicalRecords).forEach(rec => {
+        if (rec.status === "existente") return;
+        if (rec.surgery === "exodoncia" || rec.surgery === "resto" || rec.surgery === "impactado") claves.add("exodoncia");
+        if ((rec.canales && Object.values(rec.canales).some(Boolean))) claves.add("endodoncia");
+        if (rec.general === "implante") claves.add("implante");
+        if (rec.general === "corona" || ["inlay", "onlay", "overlay"].includes(rec.restoration)) claves.add("protesis");
+        if (rec.restoration === "carilla") claves.add("estetica");
+      });
+      if (bridges.length) claves.add("protesis");
+      ["inferior", "superior"].forEach(a => {
+        if (removableRecords[a].type) claves.add("protesis");
+        if (esteticaRecords[a].bleaching) claves.add("estetica");
+        if (orthoRecords[a] && (orthoRecords[a].wire !== "none" || Object.keys(orthoRecords[a].brackets || {}).length)) claves.add("ortodoncia");
+      });
+      return CONSENTIMIENTOS.filter(c => claves.has(c.clave));
+    }
+
+    function agregarConsentimientos(doc, pName, dName) {
+      const lista = consentimientosAplicables();
+      if (!lista.length) return;
+      doc.addPage();
+      doc.setFillColor(190, 18, 60);
+      doc.rect(0, 0, 210, 20, "F");
+      doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+      doc.text("CONSENTIMIENTO POR PROCEDIMIENTO", 14, 13);
+      doc.setFontSize(9); doc.text("FASSIARA", 196, 13, { align: "right" });
+
+      doc.setTextColor(30, 41, 59); doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+      let y = 30;
+      doc.text(`Paciente: ${pName}   ·   Tratante: ${dName}`, 14, y); y += 8;
+      lista.forEach(c => {
+        if (y > 250) { doc.addPage(); y = 24; }
+        doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(190, 18, 60);
+        doc.text(c.titulo, 14, y); y += 5;
+        doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(30, 41, 59);
+        const lineas = doc.splitTextToSize(c.texto, 182);
+        doc.text(lineas, 14, y); y += lineas.length * 4 + 6;
+      });
+      if (y > 240) { doc.addPage(); y = 30; }
+      doc.setFontSize(8.5);
+      doc.text("Declaro que se me explicaron los procedimientos indicados, sus alternativas y sus riesgos, que pude preguntar y que acepto el plan propuesto.", 14, y, { maxWidth: 182 });
+      y += 18;
+      doc.setDrawColor(148, 163, 184);
+      doc.line(20, y, 90, y); doc.line(115, y, 185, y);
+      doc.setFontSize(7.5); doc.setTextColor(100, 116, 139);
+      doc.text("Firma del paciente / tutor", 20, y + 4);
+      doc.text("Firma y sello del odontólogo", 115, y + 4);
+    }
+
+    // Documento de presupuesto, separado de la historia clínica
+    window.generarPresupuestoPDF = function() {
+      const { grupos, total } = presupuestoPorFases();
+      if (!grupos.length) { alert("Todavía no hay tratamientos marcados para presupuestar."); return; }
+      const pName = (document.getElementById("pdf-patient-name").value || "").trim() || "Paciente";
+      const pId = (document.getElementById("pdf-patient-id").value || "").trim() || "—";
+      const dNameRaw = (document.getElementById("pdf-doctor-name").value || "").trim() || "Odontólogo Tratante";
+      const dCop = (document.getElementById("pdf-doctor-cop").value || "").trim();
+      const dName = dCop ? `${dNameRaw} — COP ${dCop}` : dNameRaw;
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF("p", "mm", "a4");
+
+      doc.setFillColor(190, 18, 60);
+      doc.rect(0, 0, 210, 28, "F");
+      doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(15);
+      doc.text("PRESUPUESTO DE TRATAMIENTO", 14, 13);
+      doc.setFontSize(12); doc.text("FASSIARA", 196, 13, { align: "right" });
+      doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(254, 228, 230);
+      doc.text(`Fecha: ${new Date().toLocaleDateString("es-PE")}`, 14, 21);
+      doc.text("Clínica Odontológica y Estética · Huánuco, Perú", 196, 21, { align: "right" });
+
+      doc.setFillColor(241, 245, 249); doc.rect(14, 33, 182, 14, "F");
+      doc.setTextColor(30, 41, 59); doc.setFont("helvetica", "bold"); doc.setFontSize(9);
+      doc.text(`Paciente: ${pName}   ·   DNI: ${pId}   ·   Tratante: ${dName}`, 18, 42);
+
+      let y = 54;
+      grupos.forEach(g => {
+        doc.autoTable({
+          startY: y,
+          head: [[g.titulo, "Importe"]],
+          body: g.items.map(i => [i.item, `S/ ${i.price.toLocaleString("es-PE")}`]),
+          foot: [[`Subtotal ${g.titulo.split(" · ")[0]}`, `S/ ${g.subtotal.toLocaleString("es-PE")}`]],
+          theme: "striped",
+          headStyles: { fillColor: [190, 18, 60], fontSize: 9 },
+          footStyles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: "bold" },
+          styles: { fontSize: 8.5, cellPadding: 2 },
+          columnStyles: { 1: { halign: "right", cellWidth: 34 } },
+        });
+        y = doc.lastAutoTable.finalY + 6;
+      });
+
+      if (y > 235) { doc.addPage(); y = 24; }
+      doc.setFillColor(190, 18, 60); doc.rect(14, y, 182, 12, "F");
+      doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+      doc.text("TOTAL DEL PLAN", 18, y + 8);
+      doc.text(`S/ ${total.toLocaleString("es-PE")}`, 192, y + 8, { align: "right" });
+      y += 20;
+
+      doc.setTextColor(71, 85, 105); doc.setFont("helvetica", "normal"); doc.setFontSize(8);
+      doc.text([
+        "· El plan está ordenado por fases: se recomienda completar la Fase 1 antes de continuar.",
+        "· Presupuesto referencial, válido por 30 días. Puede variar si al iniciar el tratamiento se encuentran hallazgos nuevos.",
+        "· No incluye radiografías ni interconsultas, salvo que se indiquen expresamente.",
+      ], 14, y, { maxWidth: 182 });
+      y += 20;
+
+      doc.setDrawColor(148, 163, 184);
+      doc.line(20, y + 10, 90, y + 10); doc.line(115, y + 10, 185, y + 10);
+      doc.setFontSize(7.5); doc.setTextColor(100, 116, 139);
+      doc.text("Firma del paciente / tutor", 20, y + 14);
+      doc.text("Firma y sello del odontólogo", 115, y + 14);
+
+      doc.save(`Presupuesto_${pName.replace(/\s+/g, "_")}.pdf`);
+      avisoFicha("Presupuesto descargado");
+    };
     function buildClinicalPDF(pName, pId, dName, sigImg) {
       const fotos = capturasArcada();
       const { jsPDF } = window.jspdf;
@@ -4014,15 +4346,20 @@
         doc.text(f.titulo, x + 1, y + altoFoto + 4);
       });
 
-      const budget = calculateBudget();
-      const rows = budget.items.map(i => [i.item, `S/ ${i.price.toLocaleString('es-PE')}`]);
+      const { grupos, total: totalPlan } = presupuestoPorFases();
+      const rows = [];
+      grupos.forEach(g => {
+        rows.push([{ content: g.titulo, colSpan: 2, styles: { fontStyle: 'bold', fillColor: [241, 245, 249], textColor: [30, 41, 59] } }]);
+        g.items.forEach(i => rows.push([i.item, `S/ ${i.price.toLocaleString('es-PE')}`]));
+        rows.push([{ content: `Subtotal ${g.titulo.split(' · ')[0]}`, styles: { fontStyle: 'bold' } }, { content: `S/ ${g.subtotal.toLocaleString('es-PE')}`, styles: { fontStyle: 'bold' } }]);
+      });
       if (rows.length === 0) rows.push(['Evaluación General', 'S/ 0']);
 
       doc.autoTable({
         startY: 164,
         head: [['Tratamiento Planificado', 'Arancel']],
         body: rows,
-        foot: [['TOTAL PLAN DE TRATAMIENTO', `S/ ${budget.total.toLocaleString('es-PE')}`]],
+        foot: [['TOTAL PLAN DE TRATAMIENTO', `S/ ${totalPlan.toLocaleString('es-PE')}`]],
         theme: 'striped',
         headStyles: { fillColor: [190, 18, 60], fontSize: 8.5 },
         styles: { fontSize: 8, cellPadding: 2 }
@@ -4129,6 +4466,10 @@
           }
         });
       }
+
+      agregarPeriodontograma(doc);
+      agregarFotos(doc);
+      agregarConsentimientos(doc, pName, dName);
 
       return doc;
     }
