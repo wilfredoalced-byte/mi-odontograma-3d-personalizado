@@ -101,6 +101,25 @@
     body.dark-mode .btn-budget-pill { background: #1f0a10; }
     .btn-pdf { background: #be123c; border-color: #e11d48; color: #fff; }
 
+    .touch-btn:disabled { opacity: 0.35; cursor: default; }
+    #recuperar-ficha {
+      position: absolute; top: 112px; right: 74px; display: none; z-index: 120; max-width: 300px;
+      background: var(--bg-panel); border: 1px solid var(--border-color); border-left: 3px solid #D4AF37;
+      border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow-elevation); backdrop-filter: blur(10px);
+    }
+    #recuperar-ficha h5 { margin: 0 0 4px; font-size: 13px; color: var(--text-primary); }
+    #recuperar-ficha p { margin: 0 0 10px; font-size: 11px; color: var(--text-muted); }
+    #recuperar-ficha .fila-btn { display: flex; gap: 8px; }
+    #recuperar-ficha button { flex: 1; font-size: 11.5px; padding: 7px 10px; border-radius: 8px; font-weight: 700; cursor: pointer; }
+    #btn-recuperar { background: var(--primary); color: #fff; border: none; }
+    #btn-descartar { background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border-color); }
+    #aviso-ficha {
+      position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: none; z-index: 150;
+      background: rgba(15,23,42,0.92); color: #fff; font-size: 12px; font-weight: 600;
+      padding: 8px 16px; border-radius: 999px; border-bottom: 2px solid #D4AF37;
+    }
+    @media (max-width: 820px) { #recuperar-ficha { right: 16px; left: 16px; max-width: none; } }
+
     /* Barra de anatomía: el dorado Fassiara va solo en la interfaz, nunca sobre los tejidos */
     #anatomy-bar {
       position: absolute;
@@ -458,6 +477,9 @@
       <button class="touch-btn btn-alert" onclick="openAnamnesisModal()">⚠️ Alertas</button>
       <button class="touch-btn btn-budget-pill" id="btn-top-budget" onclick="openBudgetModal()">💰 S/ 0</button>
       <button class="touch-btn" id="btn-theme-toggle" onclick="toggleAppTheme()">☀️</button>
+      <button class="touch-btn" id="btn-undo" onclick="deshacer()" title="Deshacer (Ctrl+Z)" disabled>↶</button>
+      <button class="touch-btn" id="btn-redo" onclick="rehacer()" title="Rehacer (Ctrl+Y)" disabled>↷</button>
+      <button class="touch-btn" id="btn-ficha" onclick="abrirFichaModal()" title="Guardar o abrir la ficha">💾 Ficha</button>
       <button class="touch-btn" id="btn-anatomy" onclick="toggleAnatomyBar()">🦴 Anatomía</button>
       <button class="touch-btn btn-pdf" onclick="openConsentModal('pdf')">📄 PDF</button>
     </div>
@@ -940,6 +962,36 @@
     </div>
   </div>
 
+  <!-- Al abrir, si quedó trabajo sin terminar se ofrece recuperarlo -->
+  <div id="recuperar-ficha">
+    <h5>Quedó una ficha sin terminar</h5>
+    <p id="recuperar-detalle"></p>
+    <div class="fila-btn">
+      <button id="btn-recuperar">Recuperar</button>
+      <button id="btn-descartar">Empezar de cero</button>
+    </div>
+  </div>
+  <div id="aviso-ficha"></div>
+
+  <!-- Guardar en archivo, abrir una ficha y borrar la copia local -->
+  <div id="ficha-modal" class="modal-overlay">
+    <div class="modal-card">
+      <h3 style="margin:0 0 6px; font-size:17px;">Ficha del paciente</h3>
+      <p style="font-size:11.5px; color:var(--text-muted); margin:0 0 4px;">Mientras trabajas, la ficha se guarda sola en este equipo. No sale de aquí: no se envía a ningún servidor.</p>
+      <p id="estado-guardado" style="font-size:11px; color:var(--text-muted); margin:0 0 12px;"></p>
+      <button class="touch-btn btn-pdf" style="width:100%; margin-bottom:8px;" onclick="exportarFicha()">💾 Guardar ficha en un archivo</button>
+      <label class="touch-btn" style="width:100%; display:block; text-align:center; margin-bottom:8px; cursor:pointer;">
+        📂 Abrir una ficha guardada
+        <input type="file" accept="application/json,.json" style="display:none;" onchange="importarFicha(this)">
+      </label>
+      <p style="font-size:10.5px; color:var(--text-muted); margin:6px 0 10px;">El archivo guarda todo lo marcado y los datos del formulario, para seguir en otro equipo o comparar en la próxima cita.</p>
+      <div class="modal-btns">
+        <button class="touch-btn" onclick="borrarFichaGuardada()">🗑️ Borrar copia de este equipo</button>
+        <button class="touch-btn active" onclick="cerrarFichaModal()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="anat-tooltip"></div>
   <div id="tooth-card">
     <h4 id="card-fdi">—</h4>
@@ -1170,6 +1222,7 @@
     let rootsGroup = null, dentinaGroup = null, pulpaGroup = null, ligamentoGroup = null, huesoGroup = null;
     let fdiLabelsGroup = null, estadoGroup = null, contactosGroup = null, oclusalLineGroup = null;
     let enamelMeshes = [], gumMeshes = [];
+    let fichaOfrecida = false;
     let pickMeshes = [];                 // malla-proxy ligera: selección y etiquetas
     let internasConstruidas = false;
 
@@ -1615,6 +1668,233 @@
       return g;
     }
 
+
+    // ================= Ficha: guardado, archivo y deshacer =================
+    // Todo lo marcado vive en variables sueltas; aquí se junta en un solo objeto
+    // para poder guardarlo, exportarlo y recorrer el historial de cambios.
+    const CLAVE_BORRADOR = 'fassiara-odontograma-borrador';
+    const CAMPOS_FORMULARIO = ['pdf-patient-name', 'pdf-patient-id', 'pdf-patient-phone', 'pdf-doctor-name', 'pdf-doctor-cop', 'med-other-notes'];
+    let restaurando = false;               // evita registrar cambios mientras se aplica un estado
+    let guardadoPendiente = null;
+
+    function leerFormulario() {
+      const datos = {};
+      CAMPOS_FORMULARIO.forEach(id => { const el = document.getElementById(id); if (el) datos[id] = el.value; });
+      return datos;
+    }
+
+    function estadoFicha() {
+      return {
+        version: 1,
+        guardadoEn: new Date().toISOString(),
+        modo: currentMode, arcada: currentArch,
+        clinicalRecords, perioRecords, bridges, removableRecords, occlusionRecords,
+        atmRecords, esteticaRecords, pediatricRecords, orthoRecords,
+        medicalAlerts, registrosGenerales,
+        formulario: leerFormulario(),
+      };
+    }
+
+    // Vacía un objeto o array y le vuelca el contenido guardado, sin reasignarlo
+    function volcar(destino, origen) {
+      if (Array.isArray(destino)) { destino.length = 0; (origen || []).forEach(v => destino.push(v)); return; }
+      Object.keys(destino).forEach(k => delete destino[k]);
+      Object.assign(destino, origen || {});
+    }
+
+    function aplicarFicha(f, opciones = {}) {
+      if (!f) return;
+      restaurando = true;
+      volcar(clinicalRecords, f.clinicalRecords);
+      volcar(perioRecords, f.perioRecords);
+      volcar(bridges, f.bridges);
+      volcar(removableRecords, f.removableRecords);
+      volcar(occlusionRecords, f.occlusionRecords);
+      volcar(atmRecords, f.atmRecords);
+      volcar(esteticaRecords, f.esteticaRecords);
+      volcar(pediatricRecords, f.pediatricRecords);
+      volcar(orthoRecords, f.orthoRecords);
+      volcar(medicalAlerts, f.medicalAlerts);
+      volcar(registrosGenerales, f.registrosGenerales);
+      if (f.formulario) CAMPOS_FORMULARIO.forEach(id => { const el = document.getElementById(id); if (el && f.formulario[id] !== undefined) el.value = f.formulario[id]; });
+
+      // Botones de alertas y registros generales
+      Object.entries(medicalAlerts).forEach(([k, v]) => document.getElementById('alert-' + k)?.classList.toggle('active', !!v));
+      Object.entries(registrosGenerales).forEach(([k, v]) => document.getElementById('reg-' + k)?.classList.toggle('active', !!v));
+      updateMedicalAlertBanner();
+
+      const cambiaArcada = opciones.cargarArcada !== false && (f.modo && f.modo !== currentMode || f.arcada && f.arcada !== currentArch);
+      if (cambiaArcada) {
+        currentMode = f.modo; currentArch = f.arcada;
+        document.getElementById('btn-mode-adult').classList.toggle('active', currentMode === 'adult');
+        document.getElementById('btn-mode-temp').classList.toggle('active', currentMode === 'temporal');
+        document.getElementById('btn-arch-inf').classList.toggle('active', currentArch === 'inferior');
+        document.getElementById('btn-arch-sup').classList.toggle('active', currentArch === 'superior');
+        loadArchData();
+      } else {
+        updateUIState();
+        renderAllLayers();
+      }
+      calculateBudget();
+      restaurando = false;
+    }
+
+    // ---- Historial (deshacer / rehacer) ----
+    const historial = [];
+    let posHistorial = -1;
+    const TOPE_HISTORIAL = 60;
+
+    function registrarCambio() {
+      if (restaurando) return;
+      const foto = JSON.stringify(estadoFicha(), (k, v) => k === 'guardadoEn' ? undefined : v);
+      if (historial[posHistorial] === foto) return;
+      historial.splice(posHistorial + 1);
+      historial.push(foto);
+      if (historial.length > TOPE_HISTORIAL) historial.shift();
+      posHistorial = historial.length - 1;
+      actualizarBotonesHistorial();
+      guardarBorrador();
+    }
+
+    function actualizarBotonesHistorial() {
+      const atras = document.getElementById('btn-undo'), adelante = document.getElementById('btn-redo');
+      if (atras) atras.disabled = posHistorial <= 0;
+      if (adelante) adelante.disabled = posHistorial >= historial.length - 1;
+    }
+
+    window.deshacer = function() {
+      if (posHistorial <= 0) return;
+      posHistorial--;
+      aplicarFicha(JSON.parse(historial[posHistorial]));
+      actualizarBotonesHistorial();
+      guardarBorrador();
+      avisoFicha('Cambio deshecho');
+    };
+
+    window.rehacer = function() {
+      if (posHistorial >= historial.length - 1) return;
+      posHistorial++;
+      aplicarFicha(JSON.parse(historial[posHistorial]));
+      actualizarBotonesHistorial();
+      guardarBorrador();
+      avisoFicha('Cambio rehecho');
+    };
+
+    let registroPendiente = null;
+    function programarRegistro() {
+      clearTimeout(registroPendiente);
+      registroPendiente = setTimeout(registrarCambio, 600);
+    }
+    ['input', 'change'].forEach(ev => document.addEventListener(ev, (e) => {
+      if (e.target && CAMPOS_FORMULARIO.includes(e.target.id)) programarRegistro();
+    }));
+
+    document.addEventListener('keydown', (e) => {
+      if (!(e.ctrlKey || e.metaKey) || e.target.matches('input, textarea')) return;
+      const k = e.key.toLowerCase();
+      if (k === 'z' && !e.shiftKey) { e.preventDefault(); deshacer(); }
+      else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); rehacer(); }
+    });
+
+    // ---- Guardado automático en este equipo ----
+    function guardarBorrador() {
+      clearTimeout(guardadoPendiente);
+      guardadoPendiente = setTimeout(() => {
+        try { localStorage.setItem(CLAVE_BORRADOR, JSON.stringify(estadoFicha())); } catch (e) { /* modo privado o sin espacio */ }
+      }, 700);
+    }
+
+    function hayMarcas(f) {
+      if (!f) return false;
+      return Object.keys(f.clinicalRecords || {}).length > 0 || Object.keys(f.perioRecords || {}).length > 0 ||
+        (f.bridges || []).length > 0 || Object.values(f.medicalAlerts || {}).some(Boolean) ||
+        Object.values(f.registrosGenerales || {}).some(Boolean);
+    }
+
+    function leerBorrador() {
+      try { return JSON.parse(localStorage.getItem(CLAVE_BORRADOR) || 'null'); } catch (e) { return null; }
+    }
+
+    window.borrarFichaGuardada = function(silencioso) {
+      try { localStorage.removeItem(CLAVE_BORRADOR); } catch (e) {}
+      if (!silencioso) avisoFicha('Ficha guardada borrada de este equipo');
+    };
+
+    function avisoFicha(texto) {
+      const el = document.getElementById('aviso-ficha');
+      if (!el) return;
+      el.textContent = texto;
+      el.style.display = 'block';
+      clearTimeout(el._t);
+      el._t = setTimeout(() => { el.style.display = 'none'; }, 2600);
+    }
+
+    // Al abrir, si quedó una ficha sin terminar se ofrece recuperarla
+    function ofrecerRecuperar() {
+      const f = leerBorrador();
+      if (!hayMarcas(f)) return;
+      const caja = document.getElementById('recuperar-ficha');
+      const cuando = new Date(f.guardadoEn);
+      const fecha = isNaN(cuando) ? '' : cuando.toLocaleString('es-PE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+      const paciente = (f.formulario && f.formulario['pdf-patient-name']) || 'sin nombre';
+      document.getElementById('recuperar-detalle').textContent = `${paciente} · ${fecha}`;
+      caja.style.display = 'block';
+      document.getElementById('btn-recuperar').onclick = () => {
+        caja.style.display = 'none';
+        aplicarFicha(f);
+        registrarCambio();
+        avisoFicha('Ficha recuperada');
+      };
+      document.getElementById('btn-descartar').onclick = () => {
+        caja.style.display = 'none';
+        borrarFichaGuardada(true);
+      };
+    }
+
+    // ---- Guardar y abrir archivo ----
+    window.exportarFicha = function() {
+      const f = estadoFicha();
+      const nombre = ((f.formulario && f.formulario['pdf-patient-name']) || 'paciente').replace(/[^\w\sÁÉÍÓÚáéíóúÑñ-]/g, '').trim().replace(/\s+/g, '_') || 'paciente';
+      const fecha = new Date().toISOString().slice(0, 10);
+      const blob = new Blob([JSON.stringify(f, null, 1)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `Odontograma_${nombre}_${fecha}.json`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      avisoFicha('Ficha guardada en archivo');
+    };
+
+    window.importarFicha = function(input) {
+      const archivo = input.files && input.files[0];
+      if (!archivo) return;
+      const lector = new FileReader();
+      lector.onload = () => {
+        try {
+          const f = JSON.parse(lector.result);
+          if (!f || !f.clinicalRecords) throw new Error('formato');
+          aplicarFicha(f);
+          registrarCambio();
+          cerrarFichaModal();
+          avisoFicha('Ficha abierta desde archivo');
+        } catch (e) {
+          alert('Ese archivo no es una ficha del odontograma.');
+        }
+      };
+      lector.readAsText(archivo);
+      input.value = '';
+    };
+
+    window.abrirFichaModal = function() {
+      const f = leerBorrador();
+      const cuando = f && new Date(f.guardadoEn);
+      document.getElementById('estado-guardado').textContent = (f && !isNaN(cuando))
+        ? 'Última copia en este equipo: ' + cuando.toLocaleString('es-PE')
+        : 'Todavía no hay ninguna copia guardada en este equipo.';
+      document.getElementById('ficha-modal').style.display = 'flex';
+    };
+    window.cerrarFichaModal = function() { document.getElementById('ficha-modal').style.display = 'none'; };
+
     // ---------- Numeración FDI, estado clínico, contactos y línea oclusal ----------
     const ESTADOS = {
       sano: { color: 0x22c55e, texto: 'Sano' },
@@ -2002,6 +2282,7 @@
         calculateBudget();
           document.getElementById('status').innerText = `Listo: ${currentMode.toUpperCase()} - ${currentArch.toUpperCase()}`;
           invalidar(3);
+        if (!fichaOfrecida) { fichaOfrecida = true; ofrecerRecuperar(); registrarCambio(); }
       });
     }
 
@@ -2049,6 +2330,7 @@
       renderOrtho();
       renderPediatric();
       updateRootsForRecords();
+      registrarCambio();
       [pathologiesGroup, perioGroup, bridgesGroup, removableGroup, occlusionGroup, traumaGroup,
        malpositionGroup, esteticaGroup, orthoGroup, pediatricGroup, surgeryGroup, endoGroup,
        fdiLabelsGroup, estadoGroup, contactosGroup, oclusalLineGroup].forEach(g => g && coloresExactos(g));
@@ -3699,6 +3981,22 @@
         vigilarFluidez(performance.now() - t0);
       }
     }
+
+    // Acciones que cambian la ficha sin repintar el modelo: se añaden al historial igual
+    [
+      'toggleMedicalAlert', 'toggleRegistroGeneral', 'closeAnamnesisModal',
+      'toggleATM', 'cycleATMDeviation', 'toggleSplintArch', 'toggleBleachingArch',
+      'cycleMaterial', 'cycleMaterialRemovible', 'cycleKennedy',
+      'cycleAparatoFuncional', 'cycleRetenedor', 'setVitaShade', 'clearVitaRecord',
+    ].forEach(nombre => {
+      const original = window[nombre];
+      if (typeof original !== 'function') return;
+      window[nombre] = function(...args) {
+        const r = original.apply(this, args);
+        registrarCambio();
+        return r;
+      };
+    });
 
     loadArchData();
     animate();

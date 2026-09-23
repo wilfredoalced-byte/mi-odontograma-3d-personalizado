@@ -150,6 +150,17 @@ Si aun así el equipo no alcanza unos 38 cuadros por segundo, el visor baja solo
 
 Colores, dorado de interfaz, numeración FDI, código de estado, vistas, corte y etiquetas se mantienen igual.
 
+
+## Ficha del paciente: guardado automático, archivo y deshacer
+
+- **Se guarda sola.** Cada cambio (marcas, alertas médicas, datos del formulario) se guarda en el propio navegador, con un retardo de 0,7 s para no escribir en cada clic. Al abrir la aplicación, si quedó trabajo sin terminar aparece un aviso con el nombre del paciente y la hora, y se puede **Recuperar** o **Empezar de cero**.
+- **Guardar y abrir archivo.** Botón **💾 Ficha** de la barra superior: exporta un `.json` con todo lo marcado y los datos del formulario (`Odontograma_<paciente>_<fecha>.json`), y permite volver a abrirlo en otro equipo o en la próxima cita para comparar. El mismo panel borra la copia local.
+- **Deshacer y rehacer.** Botones ↶ ↷ en la barra superior y atajos Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z también). Guarda los últimos 60 pasos. Antes, el único arreglo era "Borrar Pieza", que borraba todo lo de ese diente.
+
+Cómo está hecho: `estadoFicha()` junta en un objeto las variables donde vive lo marcado (`clinicalRecords`, `perioRecords`, `bridges`, `removableRecords`, `occlusionRecords`, `atmRecords`, `esteticaRecords`, `pediatricRecords`, `orthoRecords`, `medicalAlerts`, `registrosGenerales`) más los campos del formulario; `aplicarFicha()` los vuelve a volcar **sin reasignar** las constantes y repinta capas, presupuesto y banner de alertas. El historial guarda fotos en JSON de ese mismo objeto.
+
+⚠️ **Privacidad:** la copia automática incluye el nombre, el DNI y el teléfono del paciente, y queda en el navegador de ese equipo (no se envía a ningún servidor). En un equipo compartido conviene usar **Borrar copia de este equipo** al terminar la jornada.
+
 ## Deploy
 
 ### Opción A — GitHub Pages (recomendado, workflow ya incluido)
