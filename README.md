@@ -181,6 +181,16 @@ Cómo está hecho: `estadoFicha()` junta en un objeto las variables donde vive l
 - **Funciona sin internet.** `manifest.webmanifest` y `sw.js` hacen que la aplicación se pueda instalar en la tablet y que abra y cargue los modelos aunque se caiga la conexión (probado desconectando la red tras la primera visita).
 - **Carga progresiva.** Primero se muestra la malla ligera y, cuando llega, se cambia por la detallada; la malla-proxy se reutiliza, así que se puede tocar una pieza desde el primer segundo.
 
+
+## Identidad visual
+
+La interfaz usa los colores tomados del propio logo (muestreados del archivo): **durazno `#FABAA1`** del fondo, **dorado `#D29E2F`** de la estrella y un **terracota `#9C5540`** derivado para rellenos con texto blanco. Se reparten así: durazno en botones y cabeceras activas, dorado como acento (total del presupuesto, filetes, títulos de sección, bordes de tarjeta) y terracota en los puntos de mayor peso (estado "Requerido", cara seleccionada, especialidad activa). El fondo es blanco y el del visor un degradado muy suave, para no competir con el modelo.
+
+- **Tipografía:** *Cormorant Garamond* para títulos y *Inter* para datos e interfaz. Los `.woff2` viven en `./fuentes` (262 KB, subconjunto latino) y el service worker los guarda, así que también funcionan sin conexión. Los números de las piezas fuerzan cifras alineadas (`lining-nums`), porque la serif trae cifras de estilo antiguo.
+- **Iconos:** los emojis se reemplazan por un juego de iconos SVG de línea, mismo grosor y trazo redondeado, a partir de un mapa emoji → icono que recorre el documento al abrir. Los textos de los botones no cambian: solo el símbolo.
+- **Documentos:** la Historia Clínica, el presupuesto, el periodontograma, los consentimientos y la orden de laboratorio llevan la misma identidad: banda terracota, hilo dorado, logo de la clínica y tablas en la paleta.
+- **Color clínico intacto:** el código de estado (verde/rojo/amarillo/azul/gris/morado), las marcas sobre el modelo y los colores de dientes y encía no se tocaron: ahí el color es información, no decoración.
+
 ## Deploy
 
 ### Opción A — GitHub Pages (recomendado, workflow ya incluido)

@@ -3,7 +3,7 @@
 // Estrategia: la página y las librerías se sirven de caché y se refrescan en segundo plano;
 // los modelos 3D (grandes y que no cambian) se guardan la primera vez que se usan.
 
-const VERSION = 'fassiara-odontograma-v1';
+const VERSION = 'fassiara-odontograma-v2';
 const ESENCIALES = [
   './',
   './index.html',
@@ -16,6 +16,12 @@ const ESENCIALES = [
   './raices_superior.json',
   './raices_temporal_inferior.json',
   './raices_temporal_superior.json',
+  './fuentes/Inter-400.woff2',
+  './fuentes/Inter-500.woff2',
+  './fuentes/Inter-600.woff2',
+  './fuentes/Inter-700.woff2',
+  './fuentes/CormorantGaramond-500.woff2',
+  './fuentes/CormorantGaramond-600.woff2',
 ];
 
 self.addEventListener('install', (e) => {
@@ -39,7 +45,7 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET') return;
 
   const url = new URL(req.url);
-  const esModelo = /\.(glb|json)$/.test(url.pathname);
+  const esModelo = /\.(glb|json|woff2)$/.test(url.pathname);
   const esLibreria = /cdnjs\.cloudflare\.com|cdn\.jsdelivr\.net|gstatic\.com/.test(url.host);
 
   // Modelos y librerías: primero la caché (no cambian y pesan)
