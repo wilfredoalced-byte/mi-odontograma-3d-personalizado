@@ -113,6 +113,14 @@
     #recuperar-ficha button { flex: 1; font-size: 11.5px; padding: 7px 10px; border-radius: 8px; font-weight: 700; cursor: pointer; }
     #btn-recuperar { background: var(--primary); color: #fff; border: none; }
     #btn-descartar { background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border-color); }
+    #avisos-clinicos {
+      position: absolute; top: 112px; left: 16px; display: none; z-index: 97; max-width: 330px;
+      background: #FEF3C7; border: 1px solid #F59E0B; border-left: 3px solid #B45309;
+      border-radius: 10px; padding: 8px 12px; font-size: 11px; line-height: 1.5; color: #7C2D12;
+      box-shadow: var(--shadow-elevation);
+    }
+    body.dark-mode #avisos-clinicos { background: #3b2a0c; color: #FDE68A; border-color: #B45309; }
+    #anatomy-bar.open ~ #avisos-clinicos { top: 250px; }
     #aviso-ficha {
       position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: none; z-index: 150;
       background: rgba(15,23,42,0.92); color: #fff; font-size: 12px; font-weight: 600;
@@ -992,6 +1000,7 @@
     </div>
   </div>
 
+  <div id="avisos-clinicos"></div>
   <div id="anat-tooltip"></div>
   <div id="tooth-card">
     <h4 id="card-fdi">—</h4>
@@ -1000,6 +1009,7 @@
     <div class="fila"><span>Estado</span><strong id="card-estado"></strong></div>
     <div class="fila"><span>Raíces</span><strong id="card-raices"></strong></div>
     <div class="fila"><span>Conductos</span><strong id="card-conductos"></strong></div>
+    <div class="fila" id="card-fila-registro" style="display:none;"><span>Registrado</span><strong id="card-registro"></strong></div>
   </div>
 
   <div id="status">Iniciando visor 3D...</div>
@@ -1224,6 +1234,7 @@
     let enamelMeshes = [], gumMeshes = [];
     let fichaOfrecida = false;
     let pickMeshes = [];                 // malla-proxy ligera: selección y etiquetas
+    let proxyEscena = null;              // se reaprovecha entre el nivel ligero y el detallado
     let internasConstruidas = false;
 
     // Número de pieza y zona anatómica a partir de un impacto sobre la malla-proxy
@@ -1673,6 +1684,7 @@
     // Todo lo marcado vive en variables sueltas; aquí se junta en un solo objeto
     // para poder guardarlo, exportarlo y recorrer el historial de cambios.
     const CLAVE_BORRADOR = 'fassiara-odontograma-borrador';
+    const marcasTiempo = {};              // cuándo se registró por última vez cada pieza
     const CAMPOS_FORMULARIO = ['pdf-patient-name', 'pdf-patient-id', 'pdf-patient-phone', 'pdf-doctor-name', 'pdf-doctor-cop', 'med-other-notes'];
     let restaurando = false;               // evita registrar cambios mientras se aplica un estado
     let guardadoPendiente = null;
@@ -1690,7 +1702,7 @@
         modo: currentMode, arcada: currentArch,
         clinicalRecords, perioRecords, bridges, removableRecords, occlusionRecords,
         atmRecords, esteticaRecords, pediatricRecords, orthoRecords,
-        medicalAlerts, registrosGenerales,
+        medicalAlerts, registrosGenerales, marcasTiempo,
         formulario: leerFormulario(),
       };
     }
@@ -1716,6 +1728,7 @@
       volcar(orthoRecords, f.orthoRecords);
       volcar(medicalAlerts, f.medicalAlerts);
       volcar(registrosGenerales, f.registrosGenerales);
+      volcar(marcasTiempo, f.marcasTiempo);
       if (f.formulario) CAMPOS_FORMULARIO.forEach(id => { const el = document.getElementById(id); if (el && f.formulario[id] !== undefined) el.value = f.formulario[id]; });
 
       // Botones de alertas y registros generales
@@ -1746,7 +1759,8 @@
 
     function registrarCambio() {
       if (restaurando) return;
-      const foto = JSON.stringify(estadoFicha(), (k, v) => k === 'guardadoEn' ? undefined : v);
+      const foto = JSON.stringify(estadoFicha(), (k, v) => (k === 'guardadoEn' || k === 'marcasTiempo') ? undefined : v);
+      sellarPiezasCambiadas(historial[posHistorial], foto);
       if (historial[posHistorial] === foto) return;
       historial.splice(posHistorial + 1);
       historial.push(foto);
@@ -1754,6 +1768,22 @@
       posHistorial = historial.length - 1;
       actualizarBotonesHistorial();
       guardarBorrador();
+    }
+
+    // Compara con la foto anterior y marca la hora de las piezas que cambiaron
+    function sellarPiezasCambiadas(antes, ahora) {
+      if (!antes) return;
+      try {
+        const a = JSON.parse(antes), b = JSON.parse(ahora);
+        const piezas = new Set([...Object.keys(a.clinicalRecords || {}), ...Object.keys(b.clinicalRecords || {}),
+          ...Object.keys(a.perioRecords || {}), ...Object.keys(b.perioRecords || {})]);
+        const sello = Date.now();
+        piezas.forEach(f => {
+          const igual = JSON.stringify((a.clinicalRecords || {})[f]) === JSON.stringify((b.clinicalRecords || {})[f]) &&
+            JSON.stringify((a.perioRecords || {})[f]) === JSON.stringify((b.perioRecords || {})[f]);
+          if (!igual) marcasTiempo[f] = sello;
+        });
+      } catch (e) { /* si algo falla, simplemente no se sella */ }
     }
 
     function actualizarBotonesHistorial() {
@@ -1894,6 +1924,49 @@
       document.getElementById('ficha-modal').style.display = 'flex';
     };
     window.cerrarFichaModal = function() { document.getElementById('ficha-modal').style.display = 'none'; };
+
+    // ---------- Avisos de coherencia clínica ----------
+    // No bloquean nada: solo avisan de combinaciones que suelen ser un error de marcado.
+    function avisosCoherencia() {
+      const avisos = [];
+      for (const [fdi, rec] of Object.entries(clinicalRecords)) {
+        const caras = rec.faces ? Object.keys(rec.faces).length : 0;
+        const canales = rec.canales && Object.values(rec.canales).some(Boolean);
+        if (rec.general === 'ausente') {
+          const otras = caras || canales || rec.restoration || rec.trauma || rec.pediatric ||
+            (rec.surgery && rec.surgery !== 'exodoncia');
+          if (otras) avisos.push(`Pz ${fdi}: está marcada como ausente y además tiene tratamientos marcados.`);
+        }
+        if (rec.general === 'implante' && canales) avisos.push(`Pz ${fdi}: un implante no lleva endodoncia.`);
+        if (rec.surgery === 'exodoncia' && (caras || rec.restoration)) {
+          avisos.push(`Pz ${fdi}: marcaste exodoncia y también tratamiento restaurador.`);
+        }
+        if (rec.general === 'corona' && rec.restoration === 'carilla') {
+          avisos.push(`Pz ${fdi}: corona y carilla a la vez en la misma pieza.`);
+        }
+      }
+      bridges.forEach(b => {
+        [b.start, b.end].forEach(f => {
+          if (clinicalRecords[f] && clinicalRecords[f].general === 'ausente') {
+            avisos.push(`Puente ${b.start}–${b.end}: el pilar ${f} está marcado como ausente.`);
+          }
+        });
+      });
+      return avisos;
+    }
+
+    let avisosPrevios = "";
+    function revisarCoherencia() {
+      const avisos = avisosCoherencia();
+      const clave = avisos.join(" | ");
+      const caja = document.getElementById("avisos-clinicos");
+      if (caja) {
+        caja.style.display = avisos.length ? 'block' : 'none';
+        caja.innerHTML = avisos.map(a => `<div>⚠️ ${a}</div>`).join('');
+      }
+      if (clave && clave !== avisosPrevios) avisoFicha("⚠️ " + avisos[avisos.length - 1]);
+      avisosPrevios = clave;
+    }
 
     // ---------- Numeración FDI, estado clínico, contactos y línea oclusal ----------
     const ESTADOS = {
@@ -2064,21 +2137,60 @@
       camAnim = { desde: camera.position.clone(), haciaPos: pos, desdeT: controls.target.clone(), haciaT: target, t: 0, ms, t0: performance.now() };
     }
 
-    window.setVista = function(nombre) {
-      if (!rootsGroup || !activeModel) return;
+    // Posición de cámara de cada vista guardada
+    function camaraVista(nombre) {
       const { up, centro, frente, lado } = baseVectores();
       const d = nombre === 'oclusal' ? 3.3 : 3.0;
-      const destino = centro.clone();
       let pos;
       if (nombre === 'frontal') pos = centro.clone().addScaledVector(frente, d).addScaledVector(up, 0.3);
       else if (nombre === 'derecha') pos = centro.clone().addScaledVector(lado, d).addScaledVector(up, 0.2);
       else if (nombre === 'izquierda') pos = centro.clone().addScaledVector(lado, -d).addScaledVector(up, 0.2);
       else if (nombre === 'oclusal') pos = centro.clone().addScaledVector(up, d);
       else pos = centro.clone().addScaledVector(frente, d * 0.8).addScaledVector(lado, d * 0.6).addScaledVector(up, d * 0.4);
-      camera.up.copy(nombre === 'oclusal' ? frente.clone().negate() : up);
-      volarCamara(pos, destino);
+      return { pos, destino: centro.clone(), arriba: nombre === 'oclusal' ? frente.clone().negate() : up.clone() };
+    }
+
+    window.setVista = function(nombre) {
+      if (!rootsGroup || !activeModel) return;
+      const v = camaraVista(nombre);
+      camera.up.copy(v.arriba);
+      volarCamara(v.pos, v.destino);
       document.querySelectorAll('.vista-chip').forEach(b => b.classList.toggle('active', b.dataset.vista === nombre));
     };
+
+    // Cuatro fotos del modelo para la Historia Clínica, sin mover lo que ve el usuario
+    function capturasArcada(ancho = 620, alto = 440) {
+      const vistas = [
+        ['frontal', 'Vista frontal'], ['oclusal', 'Vista oclusal'],
+        ['derecha', 'Lateral derecha'], ['izquierda', 'Lateral izquierda'],
+      ];
+      if (!rootsGroup || !activeModel) {
+        renderer.render(scene, camera);
+        return [{ img: renderer.domElement.toDataURL('image/jpeg', 0.92), titulo: 'Modelo 3D' }];
+      }
+      const guardar = { pos: camera.position.clone(), arriba: camera.up.clone(), destino: controls.target.clone() };
+      const lienzo = document.createElement('canvas');
+      lienzo.width = ancho; lienzo.height = alto;
+      const ctx = lienzo.getContext('2d');
+      const salida = [];
+      vistas.forEach(([nombre, titulo]) => {
+        const v = camaraVista(nombre);
+        camera.position.copy(v.pos); camera.up.copy(v.arriba);
+        controls.target.copy(v.destino); controls.update();
+        renderer.render(scene, camera);
+        const src = renderer.domElement;
+        const escala = Math.min(src.width / ancho, src.height / alto);
+        const rw = ancho * escala, rh = alto * escala;
+        ctx.fillStyle = "#F4EEEB"; ctx.fillRect(0, 0, ancho, alto);
+        ctx.drawImage(src, (src.width - rw) / 2, (src.height - rh) / 2, rw, rh, 0, 0, ancho, alto);
+        salida.push({ img: lienzo.toDataURL('image/jpeg', 0.92), titulo });
+      });
+      camera.position.copy(guardar.pos); camera.up.copy(guardar.arriba);
+      controls.target.copy(guardar.destino); controls.update();
+      renderer.render(scene, camera);
+      invalidar(2);
+      return salida;
+    }
 
     // Al elegir una pieza, acercarla y centrarla
     function enfocarPieza(fdi) {
@@ -2120,6 +2232,12 @@
       document.getElementById('card-estado').innerHTML = `<i class="anat-swatch" style="background:#${est.color.toString(16).padStart(6, '0')}"></i>${est.texto}`;
       document.getElementById('card-raices').innerText = especs.length;
       document.getElementById('card-conductos').innerText = especs.length + (especs.length > 1 && !superior && d >= 6 ? 1 : 0);
+      const sello = marcasTiempo[fdi];
+      const filaSello = document.getElementById('card-fila-registro');
+      if (filaSello) {
+        filaSello.style.display = sello ? 'flex' : 'none';
+        if (sello) document.getElementById('card-registro').innerText = new Date(sello).toLocaleString('es-PE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+      }
     }
 
     const ZONA_LABEL = ['Encía insertada', 'Encía marginal', 'Cúspide / borde incisal', 'Surco central', 'Cara de la corona', 'Cuello cervical', 'Superficie radicular'];
@@ -2135,12 +2253,35 @@
       return lista.concat(pickMeshes);      // la proxy va oculta, pero sí se consulta
     }
 
+    // En pantalla táctil no hay "pasar el cursor": la etiqueta sale al mantener el dedo.
+    let tempTacto = null;
+    window.addEventListener('pointerdown', (e) => {
+      if (e.pointerType !== 'touch' || !tooltip || !activeModel) return;
+      if (e.target.closest('#top-bar, #specialty-rail, #bottom-sheet, #layer-floating-bar, #anatomy-bar, .modal-overlay')) return;
+      clearTimeout(tempTacto);
+      tempTacto = setTimeout(() => {
+        hoverT = 0;
+        mostrarEtiqueta(e.clientX, e.clientY);
+        clearTimeout(tooltip._ocultar);
+        tooltip._ocultar = setTimeout(() => { tooltip.style.display = 'none'; }, 2800);
+      }, 380);
+    });
+    ['pointerup', 'pointercancel', 'pointermove'].forEach(ev => window.addEventListener(ev, (e) => {
+      if (e.pointerType === 'touch') clearTimeout(tempTacto);
+    }));
+
     window.addEventListener('pointermove', (e) => {
+      if (e.pointerType === 'touch') return;           // en táctil se usa mantener pulsado
       if (!tooltip || !activeModel) return;
       if (e.target.closest('#top-bar, #specialty-rail, #bottom-sheet, #layer-floating-bar, #anatomy-bar, .modal-overlay')) { tooltip.style.display = 'none'; return; }
+      mostrarEtiqueta(e.clientX, e.clientY);
+    });
+
+    function mostrarEtiqueta(clientX, clientY) {
       const ahora = performance.now();
       if (ahora - hoverT < 60) return;                 // no hace falta calcularlo en cada pixel
       hoverT = ahora;
+      const e = { clientX, clientY };
       const mouseV = new THREE.Vector2((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
       hoverRay.setFromCamera(mouseV, camera);
       const hit = hoverRay.intersectObjects(objetosAnatomicos(), true)[0];
@@ -2157,7 +2298,7 @@
       tooltip.style.display = 'block';
       tooltip.style.left = Math.min(window.innerWidth - 220, e.clientX + 14) + 'px';
       tooltip.style.top = (e.clientY + 16) + 'px';
-    });
+    }
 
     function getAnatomicalOrder() {
       return (currentMode === 'temporal')
@@ -2165,31 +2306,40 @@
         : (currentArch === 'superior' ? [18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28] : [48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38]);
     }
 
-    async function loadArchData() {
-      document.getElementById('status').innerText = 'Cargando arcada 3D...';
-      const setting = CONFIG[currentMode][currentArch];
-      const loadToken = ++currentLoadToken;
-
+    // Quita la arcada montada. La malla-proxy puede conservarse: no cambia entre
+    // el nivel ligero y el detallado, y así el cursor sigue funcionando al instante.
+    function limpiarArcada({ conservarProxy }) {
+      const compartidos = Object.values(DENTAL_MATERIALS);
       while (archContainer.children.length > 0) {
         const obj = archContainer.children[0];
         obj.traverse((child) => {
-          if (child.isMesh) {
-            if (child.geometry) child.geometry.dispose();
-            const shared = Object.values(DENTAL_MATERIALS);
-            if (child.material) {
-              if (Array.isArray(child.material)) child.material.forEach(m => { if (!shared.includes(m)) m.dispose(); });
-              else if (!shared.includes(child.material)) child.material.dispose();
-            }
+          if (!child.isMesh) return;
+          if (conservarProxy && child.userData.esProxy) return;
+          if (child.geometry) child.geometry.dispose();
+          if (child.material) {
+            if (Array.isArray(child.material)) child.material.forEach(m => { if (!compartidos.includes(m)) m.dispose(); });
+            else if (!compartidos.includes(child.material)) child.material.dispose();
           }
         });
         archContainer.remove(obj);
       }
       meshTargets.length = 0;
-      pickMeshes.forEach(m => m.geometry.dispose());
-      pickMeshes = [];
+      if (!conservarProxy) {
+        pickMeshes.forEach(m => m.geometry.dispose());
+        pickMeshes = [];
+        proxyEscena = null;
+      }
       internasConstruidas = false;
       activeModel = null;
       rootsGroup = null;
+    }
+
+    async function loadArchData() {
+      document.getElementById('status').innerText = 'Cargando arcada 3D...';
+      const setting = CONFIG[currentMode][currentArch];
+      const loadToken = ++currentLoadToken;
+
+      limpiarArcada({ conservarProxy: false });
 
       try {
         const res = await fetch(setting.json);
@@ -2202,8 +2352,9 @@
         if (res.ok) rootsData = await res.json();
       } catch (err) { rootsData = null; }
 
-      loader.load(arcadaGlb(setting.base), (gltf) => {
+      const montar = (gltf, esPrevia) => {
         if (loadToken !== currentLoadToken) return;
+        if (esPrevia === false && activeModel) limpiarArcada({ conservarProxy: true });
 
         activeModel = gltf.scene;
         archContainer.add(activeModel);
@@ -2256,18 +2407,22 @@
         }
 
         // Malla-proxy: invisible, solo para el cursor y la selección
-        if (setting.proxy) {
+        if (proxyEscena) {
+          activeModel.add(proxyEscena);                     // ya estaba cargada: se reengancha
+        } else if (setting.proxy) {
           loaderProxy.load(setting.proxy, (px) => {
             if (loadToken !== currentLoadToken) return;
             px.scene.traverse(o => {
               if (o.isMesh) {
                 o.visible = false;
+                o.userData.esProxy = true;
                 o.material.dispose();
                 o.material = new THREE.MeshBasicMaterial({ visible: false });
                 pickMeshes.push(o);
               }
             });
-            activeModel.add(px.scene);
+            proxyEscena = px.scene;
+            if (activeModel) activeModel.add(proxyEscena);
           }, undefined, () => { pickMeshes = []; });
         }
         applyAnatomyVisibility();
@@ -2280,10 +2435,24 @@
         buildGlobalHitBoxes();
         renderAllLayers();
         calculateBudget();
-          document.getElementById('status').innerText = `Listo: ${currentMode.toUpperCase()} - ${currentArch.toUpperCase()}`;
-          invalidar(3);
+        document.getElementById('status').innerText = esPrevia
+          ? `Afinando detalle… (${currentMode.toUpperCase()} - ${currentArch.toUpperCase()})`
+          : `Listo: ${currentMode.toUpperCase()} - ${currentArch.toUpperCase()}`;
+        invalidar(3);
         if (!fichaOfrecida) { fichaOfrecida = true; ofrecerRecuperar(); registrarCambio(); }
-      });
+      };
+
+      // Primero la malla ligera, que llega en menos de un segundo; la detallada entra después.
+      const detallada = `./arcada_${setting.base}.glb`;
+      const ligera = `./arcada_${setting.base}_lite.glb`;
+      if (modoLigero) {
+        loader.load(ligera, (g) => montar(g, false));
+      } else {
+        loader.load(ligera, (g) => {
+          montar(g, true);
+          loader.load(detallada, (g2) => montar(g2, false));
+        }, undefined, () => loader.load(detallada, (g2) => montar(g2, false)));
+      }
     }
 
     function getToothWorldPos(pos) {
@@ -2331,6 +2500,7 @@
       renderPediatric();
       updateRootsForRecords();
       registrarCambio();
+      revisarCoherencia();
       [pathologiesGroup, perioGroup, bridgesGroup, removableGroup, occlusionGroup, traumaGroup,
        malpositionGroup, esteticaGroup, orthoGroup, pediatricGroup, surgeryGroup, endoGroup,
        fdiLabelsGroup, estadoGroup, contactosGroup, oclusalLineGroup].forEach(g => g && coloresExactos(g));
@@ -3497,9 +3667,7 @@
     };
 
     function buildClinicalPDF(pName, pId, dName, sigImg) {
-      renderer.render(scene, camera);
-      renderer.render(scene, camera);   // con dibujo bajo demanda, aseguramos un cuadro fresco para el PDF
-      const img3D = renderer.domElement.toDataURL('image/png', 1.0);
+      const fotos = capturasArcada();
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('p', 'mm', 'a4');
 
@@ -3524,14 +3692,22 @@
       doc.setFont('helvetica', 'bold');
       doc.text(`Paciente: ${pName}  |  DNI: ${pId}  |  Tratante: ${dName}`, 18, 44);
 
-      doc.addImage(img3D, 'PNG', 14, 54, 182, 80);
+      // Cuatro vistas en cuadrícula, como se documenta un caso
+      const anchoFoto = 89, altoFoto = 46;
+      fotos.slice(0, 4).forEach((f, i) => {
+        const x = 14 + (i % 2) * (anchoFoto + 4);
+        const y = 54 + Math.floor(i / 2) * (altoFoto + 9);
+        doc.addImage(f.img, 'JPEG', x, y, anchoFoto, altoFoto);
+        doc.setFontSize(7.5); doc.setTextColor(100, 116, 139); doc.setFont("helvetica", "normal");
+        doc.text(f.titulo, x + 1, y + altoFoto + 4);
+      });
 
       const budget = calculateBudget();
       const rows = budget.items.map(i => [i.item, `S/ ${i.price.toLocaleString('es-PE')}`]);
       if (rows.length === 0) rows.push(['Evaluación General', 'S/ 0']);
 
       doc.autoTable({
-        startY: 138,
+        startY: 164,
         head: [['Tratamiento Planificado', 'Arancel']],
         body: rows,
         foot: [['TOTAL PLAN DE TRATAMIENTO', `S/ ${budget.total.toLocaleString('es-PE')}`]],
@@ -3881,15 +4057,17 @@
       raycaster.setFromCamera(mouse, camera);
 
       let closestFdi = null, minDist = Infinity;
-      // Contra la malla-proxy (unos 30.000 triángulos), no contra el escaneo completo
-      const hit = pickMeshes.length ? raycaster.intersectObjects(pickMeshes, false)[0] : null;
-      if (hit) {
-        closestFdi = fdiDelImpacto(hit);
-        if (!closestFdi) {                        // impacto en la encía: la pieza más cercana
-          for (const [fdi, pos] of Object.entries(currentPositions)) {
-            const d = hit.point.distanceTo(getToothWorldPos(pos));
-            if (d < minDist && d < 0.25) { minDist = d; closestFdi = parseInt(fdi); }
-          }
+      // Contra la malla-proxy (unos 30.000 triángulos), no contra el escaneo completo.
+      // Se miran los primeros impactos: el rayo puede entrar por la encía antes de llegar al diente.
+      const impactos = pickMeshes.length ? raycaster.intersectObjects(pickMeshes, false) : [];
+      for (const i of impactos.slice(0, 4)) {
+        const f = fdiDelImpacto(i);
+        if (f) { closestFdi = f; break; }
+      }
+      if (!closestFdi && impactos.length) {       // solo encía: se toma la pieza más cercana al punto
+        for (const [fdi, pos] of Object.entries(currentPositions)) {
+          const d = impactos[0].point.distanceTo(getToothWorldPos(pos));
+          if (d < minDist && d < 0.32) { minDist = d; closestFdi = parseInt(fdi); }
         }
       }
       if (!closestFdi) {
