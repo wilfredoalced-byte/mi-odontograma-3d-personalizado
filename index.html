@@ -954,14 +954,27 @@
   <canvas id="canvas"></canvas>
 
   <script>
+    // Equipo modesto (móvil o tablet, poca memoria o pocos núcleos): se carga la
+    // arcada ligera y se bajan los ajustes de dibujo para no perder fluidez.
+    const EQUIPO_LIGERO = (() => {
+      try {
+        const tactil = window.matchMedia('(pointer: coarse)').matches;
+        const pantallaChica = Math.min(window.innerWidth, window.innerHeight) < 820;
+        const pocaMemoria = (navigator.deviceMemory || 8) <= 4;
+        const pocosNucleos = (navigator.hardwareConcurrency || 8) <= 4;
+        return (tactil && pantallaChica) || pocaMemoria || pocosNucleos;
+      } catch (e) { return false; }
+    })();
+    const arcadaGlb = (nombre) => EQUIPO_LIGERO ? `./arcada_${nombre}_lite.glb` : `./arcada_${nombre}.glb`;
+
     const CONFIG = {
       adult: {
-        inferior: { glb: './arcada_inferior.glb', json: './dientes_posiciones.json', raices: './raices_inferior.json' },
-        superior: { glb: './arcada_superior.glb', json: './dientes_superiores_posiciones.json', raices: './raices_superior.json' }
+        inferior: { glb: arcadaGlb('inferior'), json: './dientes_posiciones.json', raices: './raices_inferior.json', proxy: './proxy_inferior.glb' },
+        superior: { glb: arcadaGlb('superior'), json: './dientes_superiores_posiciones.json', raices: './raices_superior.json', proxy: './proxy_superior.glb' }
       },
       temporal: {
-        inferior: { glb: './arcada_temporal_inferior.glb', json: './dientes_temporales_inferiores.json', raices: './raices_temporal_inferior.json' },
-        superior: { glb: './arcada_temporal_superior.glb', json: './dientes_temporales_superiores.json', raices: './raices_temporal_superior.json' }
+        inferior: { glb: arcadaGlb('temporal_inferior'), json: './dientes_temporales_inferiores.json', raices: './raices_temporal_inferior.json', proxy: './proxy_temporal_inferior.glb' },
+        superior: { glb: arcadaGlb('temporal_superior'), json: './dientes_temporales_superiores.json', raices: './raices_temporal_superior.json', proxy: './proxy_temporal_superior.glb' }
       }
     };
 
@@ -1064,7 +1077,7 @@
       preserveDrawingBuffer: true
     });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, EQUIPO_LIGERO ? 1.25 : 1.75));
     renderer.outputEncoding = THREE.sRGBEncoding;
     renderer.physicallyCorrectLights = false;
 
@@ -1109,6 +1122,7 @@
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+    controls.addEventListener("change", () => invalidar(2));
 
     const hemiLight = new THREE.HemisphereLight(0xffffff, 0x8f8480, 0.38);
     scene.add(hemiLight);
@@ -1117,9 +1131,10 @@
     mainLight.position.set(4, 8, 6); // luz principal a 45° desde arriba
     scene.add(mainLight);
 
+    // Tercera luz solo en equipos con margen: en móvil bastan la hemisférica y la principal
     const rimLight = new THREE.DirectionalLight(0x94a3b8, 0.22);
     rimLight.position.set(-6, -6, -5);
-    scene.add(rimLight);
+    if (!EQUIPO_LIGERO) scene.add(rimLight);
 
     const archContainer = new THREE.Group();
     scene.add(archContainer);
@@ -1153,6 +1168,21 @@
     let rootsGroup = null, dentinaGroup = null, pulpaGroup = null, ligamentoGroup = null, huesoGroup = null;
     let fdiLabelsGroup = null, estadoGroup = null, contactosGroup = null, oclusalLineGroup = null;
     let enamelMeshes = [], gumMeshes = [];
+    let pickMeshes = [];                 // malla-proxy ligera: selección y etiquetas
+    let internasConstruidas = false;
+
+    // Número de pieza y zona anatómica a partir de un impacto sobre la malla-proxy
+    function fdiDelImpacto(hit) {
+      const a = hit.object.geometry && hit.object.geometry.attributes._fdi;
+      if (!a || !hit.face) return null;
+      const v = Math.round(a.getX(hit.face.a));
+      return v > 0 ? v : null;
+    }
+    function zonaDelImpacto(hit) {
+      const a = hit.object.geometry && hit.object.geometry.attributes._zona;
+      if (!a || !hit.face) return -1;
+      return Math.round(a.getX(hit.face.a));
+    }
 
     function setTranslucent(mat, opacity, translucent) {
       mat.transparent = translucent;
@@ -1163,6 +1193,7 @@
 
     // Cada estructura visible se vuelve translúcida si hay otra más profunda encendida.
     function applyAnatomyVisibility() {
+      invalidar(2);
       const visible = { ...anatomyOn, raices: layerVisibility.raices };
       let deepest = -1;
       for (const [k, on] of Object.entries(visible)) if (on) deepest = Math.max(deepest, ANATOMY_DEPTH[k]);
@@ -1185,7 +1216,9 @@
 
     window.toggleAnatomy = function(key) {
       anatomyOn[key] = !anatomyOn[key];
+      construirInternasSiHaceFalta();
       applyAnatomyVisibility();
+      invalidar(2);
     };
 
     window.toggleLayer = function(layerKey) {
@@ -1292,6 +1325,7 @@
     const dracoLoader = new THREE.DRACOLoader();
     dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
     loader.setDRACOLoader(dracoLoader);
+    const loaderProxy = loader;   // la malla-proxy también viene comprimida con Draco
 
     // Cuerpo coronario: cuello estrecho, ecuador abombado y techo en cúpula.
     // Con `puntiagudo` termina en punta, como los cuernos pulpares bajo las cúspides.
@@ -1388,8 +1422,6 @@
         tooth.userData.fdi = fdi;
 
         // Grupos paralelos con la misma posición y orientación, uno por estructura
-        const mk = () => { const g = new THREE.Group(); g.position.copy(base); g.quaternion.copy(tooth.quaternion); g.userData.fdi = fdi; return g; };
-        const dent = mk(), pulp = mk(), pdl = mk();
         const alto = Math.max(p.altoCorona || 0.2 * w, 0.55 * w);      // alto de corona medido (con un mínimo razonable)
         const nombre = toothName(fdi);
 
@@ -1410,9 +1442,51 @@
           root.userData.label = `${etiquetaRaiz} · Pz ${fdi}`;
           tooth.add(root);
 
+        });
+
+        tooth.userData.label = `${nombre} · Pz ${fdi}`;
+        group.add(tooth);
+        group.userData.byFdi[fdi] = tooth;
+        medidas[fdi] = { base, axis, tan, z, w, alto, grosor: p.grosor || w, largoRaiz: Math.max(...especs.map(s => s.L)) * w, buccalSign, mesialSign, nombre };
+      });
+      group.userData.medidas = medidas;
+      return group;
+    }
+
+    // Dentina, cámara pulpar, conductos y ligamento: se generan la primera vez que se piden,
+    // no al abrir la arcada, para que la carga inicial sea corta.
+    function construirInternas() {
+      const medidas = rootsGroup && rootsGroup.userData.medidas;
+      if (!medidas || internasConstruidas) return;
+      const superior = currentArch === "superior";
+      const temporal = currentMode === "temporal";
+      for (const [fdiStr, m] of Object.entries(medidas)) {
+        const fdi = +fdiStr;
+        const mk = () => {
+          const g = new THREE.Group();
+          g.position.copy(m.base);
+          g.quaternion.copy(rootsGroup.userData.byFdi[fdi].quaternion);
+          g.userData.fdi = fdi;
+          return g;
+        };
+        const dent = mk(), pulp = mk(), pdl = mk();
+        const w = m.w, alto = m.alto;
+        const especs = rootMorphology(fdi, superior, temporal);
+        especs.forEach(spec => {
+          const r0 = 0.34 * w * (spec.r || 1);
+          const largo = spec.L * w;
+          const place = (obj) => {
+            obj.position.set((spec.m || 0) * w * m.mesialSign, 0, (spec.b || 0) * w * m.buccalSign);
+            obj.rotation.z = (spec.tm || 0) * m.mesialSign;
+            obj.rotation.x = -(spec.tb || 0) * m.buccalSign;
+            return obj;
+          };
+          const etiquetaRaiz = especs.length === 1 ? "Raíz" :
+            (spec.b !== undefined && spec.b < 0 ? "Raíz palatina" : (spec.m === undefined ? "Raíz" : (spec.m > 0 ? "Raíz mesial" : "Raíz distal")));
+
           // Dentina radicular: el mismo cuerpo, un poco más estrecho
           const dRoot = place(new THREE.Mesh(rootGeometry(largo * 0.97, r0 * 0.86, r0 * (spec.rb || 1) * 0.86, 0.04 * w), DENTAL_MATERIALS.dentina));
-          dRoot.userData.label = `Dentina radicular · Pz ${fdi}`;
+          dRoot.userData.label = "Dentina radicular · Pz " + fdi;
           dent.add(dRoot);
 
           // Conducto radicular: del piso de la cámara al ápice, con una ligera curva
@@ -1423,41 +1497,46 @@
             new THREE.Vector3(0, -0.72 * largo, -0.6 * canalR),
             new THREE.Vector3(0, -0.93 * largo, 0),
           ]);
-          const canal = place(new THREE.Mesh(new THREE.TubeGeometry(curva, 28, canalR, 10, false), DENTAL_MATERIALS.pulpa));
-          canal.userData.label = `Conducto ${especs.length > 1 ? etiquetaRaiz.replace('Raíz ', '') : 'radicular'} · Pz ${fdi}`;
+          const canal = place(new THREE.Mesh(new THREE.TubeGeometry(curva, 20, canalR, 8, false), DENTAL_MATERIALS.pulpa));
+          canal.userData.label = "Conducto " + (especs.length > 1 ? etiquetaRaiz.replace("Raíz ", "") : "radicular") + " · Pz " + fdi;
           pulp.add(canal);
 
           // Ligamento periodontal: vaina fina entre la raíz y el hueso
           const lig = place(new THREE.Mesh(rootGeometry(largo * 1.02, r0 * 1.1, r0 * (spec.rb || 1) * 1.1, 0.05 * w), DENTAL_MATERIALS.ligamento));
-          lig.userData.label = `Ligamento periodontal · Pz ${fdi}`;
+          lig.userData.label = "Ligamento periodontal · Pz " + fdi;
           pdl.add(lig);
         });
 
         // Núcleo de dentina coronaria: cuello estrecho, cuerpo abombado y techo en cúpula
         const nucleo = new THREE.Mesh(cuerpoCoronario(alto * 0.80, 1), DENTAL_MATERIALS.dentina);
-        nucleo.scale.set(0.30 * w, 1, 0.30 * (p.grosor || w));
-        nucleo.position.set(0, 0, 0);
-        nucleo.userData.label = `Dentina coronaria · Pz ${fdi}`;
+        nucleo.scale.set(0.30 * w, 1, 0.30 * m.grosor);
+        nucleo.userData.label = "Dentina coronaria · Pz " + fdi;
         dent.add(nucleo);
 
         // Cámara pulpar: repite la forma de la corona a menor escala
-        const camK = temporal ? 1.3 : 1;                                // en dientes temporales la cámara es proporcionalmente mayor
+        const camK = temporal ? 1.3 : 1;
         const camara = new THREE.Mesh(cuerpoCoronario(alto * 0.42 * camK, 1, true), DENTAL_MATERIALS.pulpa);
-        camara.scale.set(0.11 * w * camK, 1, 0.11 * (p.grosor || w) * camK);
+        camara.scale.set(0.11 * w * camK, 1, 0.11 * m.grosor * camK);
         camara.position.set(0, 0.08 * alto, 0);
-        camara.userData.label = `Cámara pulpar · Pz ${fdi}`;
+        camara.userData.label = "Cámara pulpar · Pz " + fdi;
         pulp.add(camara);
 
-        tooth.userData.label = `${nombre} · Pz ${fdi}`;
-        group.add(tooth); dentinaGroup.add(dent); pulpaGroup.add(pulp); ligamentoGroup.add(pdl);
-        group.userData.byFdi[fdi] = tooth;
+        dentinaGroup.add(dent); pulpaGroup.add(pulp); ligamentoGroup.add(pdl);
         dentinaGroup.userData.byFdi[fdi] = dent;
         pulpaGroup.userData.byFdi[fdi] = pulp;
         ligamentoGroup.userData.byFdi[fdi] = pdl;
-        medidas[fdi] = { base, axis, tan, z, w, alto, grosor: p.grosor || w, largoRaiz: Math.max(...especs.map(s => s.L)) * w, buccalSign, mesialSign, nombre };
-      });
-      group.userData.medidas = medidas;
-      return group;
+      }
+      internasConstruidas = true;
+      updateRootsForRecords();
+    }
+
+    // Se llama al encender una capa: construye solo lo que esa capa necesita
+    function construirInternasSiHaceFalta() {
+      if ((anatomyOn.dentina || anatomyOn.pulpa || anatomyOn.ligamento) && !internasConstruidas) construirInternas();
+      if (anatomyOn.hueso && huesoGroup && huesoGroup.children.length === 0 && rootsGroup) {
+        const hueso = buildBone(rootsGroup.userData.medidas, getAnatomicalOrder());
+        hueso.children.forEach(c => huesoGroup.add(c));
+      }
     }
 
     // Nombre anatómico a partir del número FDI
@@ -1642,6 +1721,7 @@
 
     window.toggleExtra = function(key) {
       extrasOn[key] = !extrasOn[key];
+      invalidar(2);
       document.getElementById(`extra-${key}`)?.classList.toggle('active', extrasOn[key]);
       if (key === 'fdi' && fdiLabelsGroup) fdiLabelsGroup.visible = extrasOn.fdi;
       if (key === 'estado' && estadoGroup) estadoGroup.visible = extrasOn.estado;
@@ -1745,11 +1825,11 @@
     let hoverT = 0;
 
     function objetosAnatomicos() {
-      const lista = [...meshTargets];
+      const lista = [];
       for (const g of [rootsGroup, dentinaGroup, pulpaGroup, ligamentoGroup, huesoGroup]) {
-        if (g && g.visible) lista.push(...g.children);
+        if (g && g.visible) lista.push(...g.children.filter(o => o.visible));
       }
-      return lista.filter(o => o.visible);
+      return lista.concat(pickMeshes);      // la proxy va oculta, pero sí se consulta
     }
 
     window.addEventListener('pointermove', (e) => {
@@ -1763,10 +1843,10 @@
       const hit = hoverRay.intersectObjects(objetosAnatomicos(), true)[0];
       if (!hit) { tooltip.style.display = 'none'; return; }
       let texto = hit.object.userData.label;
-      if (!texto && hit.face) {
-        const zona = hit.object.geometry.attributes._zona;
-        const idx = zona ? Math.round(zona.getX(hit.face.a)) : -1;
-        texto = ZONA_LABEL[idx] || null;
+      if (!texto) {
+        const zona = zonaDelImpacto(hit);
+        const fdi = fdiDelImpacto(hit);
+        texto = ZONA_LABEL[zona] ? ZONA_LABEL[zona] + (fdi ? " · Pz " + fdi : "") : null;
       }
       if (!texto && hit.object.parent && hit.object.parent.userData.label) texto = hit.object.parent.userData.label;
       if (!texto) { tooltip.style.display = 'none'; return; }
@@ -1802,6 +1882,9 @@
         archContainer.remove(obj);
       }
       meshTargets.length = 0;
+      pickMeshes.forEach(m => m.geometry.dispose());
+      pickMeshes = [];
+      internasConstruidas = false;
       activeModel = null;
       rootsGroup = null;
 
@@ -1843,6 +1926,10 @@
                 const mat = DENTAL_MATERIALS[tipo];
                 if (original.normalMap && mat.normalMap !== original.normalMap) { mat.normalMap = original.normalMap; mat.needsUpdate = true; }
                 c.material = mat;
+                // Caras traseras descartadas: la mitad de los píxeles no se dibujan.
+                // En la arcada superior la malla viene espejada, así que ahí no se puede.
+                c.updateWorldMatrix(true, false);
+                mat.side = c.matrixWorld.determinant() >= 0 ? THREE.FrontSide : THREE.DoubleSide;
                 c.renderOrder = tipo === 'encia' ? 2 : 0;
                 (tipo === 'encia' ? gumMeshes : enamelMeshes).push(c);
                 original.dispose();
@@ -1859,9 +1946,26 @@
 
         if (rootsData) {
           rootsGroup = buildRoots(rootsData);
-          huesoGroup = buildBone(rootsGroup.userData.medidas, getAnatomicalOrder());
+          huesoGroup = new THREE.Group();          // el hueso se genera al encender su capa
           activeModel.add(rootsGroup, dentinaGroup, pulpaGroup, ligamentoGroup, huesoGroup);
           buildToothExtras(rootsGroup.userData.medidas);
+          construirInternasSiHaceFalta();
+        }
+
+        // Malla-proxy: invisible, solo para el cursor y la selección
+        if (setting.proxy) {
+          loaderProxy.load(setting.proxy, (px) => {
+            if (loadToken !== currentLoadToken) return;
+            px.scene.traverse(o => {
+              if (o.isMesh) {
+                o.visible = false;
+                o.material.dispose();
+                o.material = new THREE.MeshBasicMaterial({ visible: false });
+                pickMeshes.push(o);
+              }
+            });
+            activeModel.add(px.scene);
+          }, undefined, () => { pickMeshes = []; });
         }
         applyAnatomyVisibility();
 
@@ -1873,7 +1977,8 @@
         buildGlobalHitBoxes();
         renderAllLayers();
         calculateBudget();
-        document.getElementById('status').innerText = `Listo: ${currentMode.toUpperCase()} - ${currentArch.toUpperCase()}`;
+          document.getElementById('status').innerText = `Listo: ${currentMode.toUpperCase()} - ${currentArch.toUpperCase()}`;
+          invalidar(3);
       });
     }
 
@@ -1900,6 +2005,7 @@
     };
 
     function renderAllLayers() {
+      invalidar(2);
       renderClinicalPathologies();
       renderSurgery();
       renderEndoAdvanced();
@@ -3077,6 +3183,7 @@
 
     function buildClinicalPDF(pName, pId, dName, sigImg) {
       renderer.render(scene, camera);
+      renderer.render(scene, camera);   // con dibujo bajo demanda, aseguramos un cuadro fresco para el PDF
       const img3D = renderer.domElement.toDataURL('image/png', 1.0);
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('p', 'mm', 'a4');
@@ -3459,18 +3566,20 @@
       raycaster.setFromCamera(mouse, camera);
 
       let closestFdi = null, minDist = Infinity;
-      const hitIntersects = raycaster.intersectObjects(hitBoxes.children);
-      if (hitIntersects.length > 0) {
-        closestFdi = hitIntersects[0].object.userData.fdi;
-      } else {
-        const meshIntersects = raycaster.intersectObjects(meshTargets, true);
-        if (meshIntersects.length > 0) {
-          const pt = meshIntersects[0].point;
+      // Contra la malla-proxy (unos 30.000 triángulos), no contra el escaneo completo
+      const hit = pickMeshes.length ? raycaster.intersectObjects(pickMeshes, false)[0] : null;
+      if (hit) {
+        closestFdi = fdiDelImpacto(hit);
+        if (!closestFdi) {                        // impacto en la encía: la pieza más cercana
           for (const [fdi, pos] of Object.entries(currentPositions)) {
-            const d = pt.distanceTo(getToothWorldPos(pos));
-            if (d < minDist) { minDist = d; closestFdi = parseInt(fdi); }
+            const d = hit.point.distanceTo(getToothWorldPos(pos));
+            if (d < minDist && d < 0.25) { minDist = d; closestFdi = parseInt(fdi); }
           }
         }
+      }
+      if (!closestFdi) {
+        const esferas = raycaster.intersectObjects(hitBoxes.children);
+        if (esferas.length > 0) closestFdi = esferas[0].object.userData.fdi;
       }
       if (closestFdi) selectTooth(closestFdi);
     });
@@ -3518,6 +3627,9 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
+    let pedirCuadro = 0;                    // cuadros pendientes de dibujar
+    function invalidar(n) { pedirCuadro = Math.max(pedirCuadro, n || 2); }
+
     function animate() {
       requestAnimationFrame(animate);
       if (camAnim) {                                   // vuelo suave de cámara entre vistas
@@ -3527,8 +3639,9 @@
         controls.target.lerpVectors(camAnim.desdeT, camAnim.haciaT, e);
         if (k >= 1) camAnim = null;
       }
-      controls.update();
-      renderer.render(scene, camera);
+      const movio = controls.update();      // devuelve true mientras la inercia sigue viva
+      if (movio || camAnim) invalidar(2);
+      if (pedirCuadro > 0) { pedirCuadro--; renderer.render(scene, camera); }
     }
 
     loadArchData();

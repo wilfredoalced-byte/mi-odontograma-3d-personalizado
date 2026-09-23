@@ -38,7 +38,7 @@ mi-odontograma-3d/
 └── .github/workflows/deploy-pages.yml     ✅ deploy automático a Pages en cada push a main
 ```
 
-Repo completo: **~44MB**. Cada arcada pesa entre 7,7MB y 11,5MB (Draco con cuantización a 12 bits y sin texturas de color).
+Repo completo: **~14MB**. Cada arcada pesa entre 1,4MB y 1,6MB (1 MB menos en la versión ligera para móviles), más la malla-proxy de selección.
 
 ## Por qué los .glb están comprimidos
 
@@ -118,6 +118,29 @@ El botón **🦴 Anatomía** de la barra superior abre una barra con tres bloque
 - **No incluido:** remodelar cada corona con sus lóbulos de desarrollo o rehacer los surcos pieza por pieza exigiría reemplazar el modelo base por una librería dental esculpida (licencia aparte). Lo que sí se hizo fue resaltar la anatomía que el escaneo ya tiene, con sombreado por curvatura.
 
 El dorado `#D4AF37` de Fassiara se usa solo en la interfaz (bordes de la barra, línea de oclusión), nunca sobre dientes ni tejidos. El fondo es un degradado neutro y la luz principal entra a 45° desde arriba.
+
+
+## Rendimiento
+
+El visor movía 3,09 millones de triángulos por cuadro y cada movimiento del cursor lanzaba un rayo contra esa misma malla (0,5–0,8 s por consulta): de ahí venía la lentitud. Lo que se hizo:
+
+| Medida | Antes | Ahora |
+|---|---|---|
+| Triángulos dibujados | 3.089.236 | 660.904 |
+| Carga hasta "Listo" | 16,6 s | ~5 s |
+| Consulta del cursor / clic | 500–800 ms | 3–5 ms |
+| Cuadros dibujados en reposo | ~60/s | 0 |
+| Peso por arcada | 7,7–11,5 MB | 1,4–1,6 MB (+0,1–0,2 MB de malla-proxy) |
+
+- **Geometría.** Cada primitiva se simplifica por separado con meshoptimizer: los dientes conservan el 32% de sus triángulos (los surcos y las cúspides se mantienen) y la encía baja al 8%, donde no se nota. Se descartan las caras traseras (`FrontSide`) salvo en la arcada superior, cuya malla viene espejada.
+- **Texturas.** Ya no hay ninguna: el color va por vértice y el relieve lo da la malla. Se eliminaron el mapa de color y el de normales de 2048 px que seguían viajando en el archivo.
+- **Compresión.** Draco con cuantización a 12 bits en las arcadas y 14/16 bits en la malla-proxy.
+- **Malla-proxy** (`proxy_*.glb`, ~30.000 triángulos, invisible): lleva el número de pieza y la zona anatómica por vértice. El cursor y la selección consultan esta malla, no el escaneo. Es lo que devolvió la fluidez al pasar el ratón.
+- **Dibujo bajo demanda.** Solo se redibuja cuando algo cambia (cámara, capas, marcas). En reposo el visor no consume nada.
+- **Carga diferida.** Dentina, cámara pulpar, conductos, ligamento y hueso se generan la primera vez que se enciende su capa (unos 50 ms), no al abrir la arcada.
+- **Equipos modestos.** Si el navegador es táctil con pantalla chica, o declara ≤4 GB de memoria o ≤4 núcleos, se carga `arcada_*_lite.glb` (10% de los triángulos de los dientes, 3% de la encía), se baja el pixel ratio a 1,25 y se prescinde de la tercera luz. En total, 2 o 3 luces según el equipo; no hay sombras dinámicas (el volumen viene del sombreado por curvatura horneado en los vértices).
+
+Colores, dorado de interfaz, numeración FDI, código de estado, vistas, corte y etiquetas se mantienen igual.
 
 ## Deploy
 

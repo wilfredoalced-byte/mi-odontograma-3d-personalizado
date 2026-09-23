@@ -6,13 +6,17 @@
 //  5. Mide cada pieza (ancho, nivel cervical) y escribe un JSON para generar raíces en el visor.
 // Uso: node process.mjs <entrada.glb> <posiciones.json> <salida.glb> <salida_raices.json>
 import fs from 'fs';
-import { NodeIO } from '@gltf-transform/core';
+import { Document, NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS, KHRDracoMeshCompression } from '@gltf-transform/extensions';
-import { prune } from '@gltf-transform/functions';
+import { prune, simplifyPrimitive } from '@gltf-transform/functions';
+import { MeshoptSimplifier } from 'meshoptimizer';
 import draco3d from 'draco3dgltf';
 import sharp from 'sharp';
 
-const [inFile, posFile, outFile, rootsFile] = process.argv.slice(2);
+const [inFile, posFile, outFile, rootsFile, proxyFile, modo] = process.argv.slice(2);
+const LITE = modo === 'lite';                       // versión ligera para móviles
+const RATIO_DIENTES = LITE ? 0.10 : 0.32, RATIO_ENCIA = LITE ? 0.03 : 0.08;
+await MeshoptSimplifier.ready;
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({
   'draco3d.decoder': await draco3d.createDecoderModule(),
   'draco3d.encoder': await draco3d.createEncoderModule(),
@@ -241,23 +245,32 @@ for (let t = 0; t < nT; t++) {
   ((gum[a] + gum[b] + gum[c]) >= 2 ? gumIdx : teethIdx).push(a, b, c);
 }
 const buf = root.listBuffers()[0];
+const clon = (nombre, acc) => doc.createAccessor(nombre).setType(acc.getType()).setArray(acc.getArray().slice()).setBuffer(buf);
+// Sin texturas: el color va por vértice y el relieve lo da la propia malla
+const mEsmalte = doc.createMaterial('esmalte').setBaseColorFactor([1, 1, 1, 1]).setRoughnessFactor(0.3).setMetallicFactor(0).setDoubleSided(false);
+const mEncia = doc.createMaterial('encia').setBaseColorFactor([1, 1, 1, 1]).setRoughnessFactor(0.5).setMetallicFactor(0).setDoubleSided(false);
+
 const colAcc = doc.createAccessor('color').setType('VEC3').setArray(COL).setBuffer(buf);
-const normalTex = oldMat.getNormalTexture();
-const mEsmalte = doc.createMaterial('esmalte').setBaseColorFactor([1, 1, 1, 1]).setRoughnessFactor(0.3).setMetallicFactor(0).setDoubleSided(true);
-const mEncia = doc.createMaterial('encia').setBaseColorFactor([1, 1, 1, 1]).setRoughnessFactor(0.5).setMetallicFactor(0).setDoubleSided(true);
-if (normalTex) {
-  mEsmalte.setNormalTexture(normalTex); mEsmalte.getNormalTextureInfo().setTexCoord(0);
-  mEncia.setNormalTexture(normalTex); mEncia.getNormalTextureInfo().setTexCoord(0);
-}
-prim.setAttribute('_ZONA', doc.createAccessor('zona').setType('SCALAR').setArray(new Float32Array(ZONA)).setBuffer(buf)).setAttribute('COLOR_0', colAcc).setIndices(doc.createAccessor('idx_dientes').setType('SCALAR').setArray(new Uint32Array(teethIdx)).setBuffer(buf)).setMaterial(mEsmalte);
+const zonaAcc = doc.createAccessor('zona').setType('SCALAR').setArray(new Float32Array(ZONA)).setBuffer(buf);
+prim.setAttribute('COLOR_0', colAcc).setAttribute('_ZONA', zonaAcc)
+  .setAttribute('TEXCOORD_0', null).setAttribute('TANGENT', null)
+  .setIndices(doc.createAccessor('idx_dientes').setType('SCALAR').setArray(new Uint32Array(teethIdx)).setBuffer(buf))
+  .setMaterial(mEsmalte);
+
+// La encía lleva copias propias de los atributos: cada primitiva se simplifica por separado
 const gumPrim = doc.createPrimitive().setMaterial(mEncia)
   .setIndices(doc.createAccessor('idx_encia').setType('SCALAR').setArray(new Uint32Array(gumIdx)).setBuffer(buf));
-for (const s of prim.listSemantics()) gumPrim.setAttribute(s, prim.getAttribute(s));
+for (const sem of prim.listSemantics()) gumPrim.setAttribute(sem, clon(sem.toLowerCase() + '_encia', prim.getAttribute(sem)));
 mesh.addPrimitive(gumPrim);
-if (prim.getAttribute('TANGENT')) { prim.setAttribute('TANGENT', null); gumPrim.setAttribute('TANGENT', null); }
 oldMat.dispose();
+
+// Menos polígonos donde no se nota (encía) y detalle donde sí (dientes)
+const antes = [teethIdx.length / 3, gumIdx.length / 3];
+await simplifyPrimitive(prim, { simplifier: MeshoptSimplifier, ratio: RATIO_DIENTES, error: 0.0015, lockBorder: true });
+await simplifyPrimitive(gumPrim, { simplifier: MeshoptSimplifier, ratio: RATIO_ENCIA, error: 0.006, lockBorder: true });
 await doc.transform(prune());
-log('primitivas: dientes', teethIdx.length / 3, 'encía', gumIdx.length / 3);
+log('simplificado: dientes', antes[0], '→', prim.getIndices().getCount() / 3, '· encía', antes[1], '→', gumPrim.getIndices().getCount() / 3);
+
 
 // ---------- medir cada pieza para las raíces ----------
 
@@ -320,5 +333,50 @@ log('raíces medidas', Object.keys(roots.piezas).length, 'piezas');
 const draco = doc.createExtension(KHRDracoMeshCompression).setRequired(true)
   .setEncoderOptions({ method: KHRDracoMeshCompression.EncoderMethod.EDGEBREAKER, encodeSpeed: 3, decodeSpeed: 5,
     quantizationVolume: "scene", quantizationBits: { POSITION: 12, NORMAL: 8, COLOR: 8, TEX_COORD: 10, GENERIC: 8 } });
+
+// ---------- malla-proxy: copia muy ligera solo para el cursor y la selección ----------
+// Evita tener que lanzar rayos contra los 3 millones de triángulos del escaneo.
+if (proxyFile) {
+  const fdiOf = new Float32Array(nV);
+  for (const f of fdis) for (const i of (buckets[f] || [])) fdiOf[i] = +f;
+  const construir = (tris, objetivo) => {
+    const idx = new Uint32Array(tris);
+    log('proxy in:', idx.length, idx.length % 3, objetivo, objetivo % 3, Pw.length, Pw.length % 3);
+    const meta = Math.max(3, Math.floor(objetivo / 3) * 3);   // múltiplo de 3
+    const [simplificado] = MeshoptSimplifier.simplify(idx, Pw, 3, meta, 0.08, ["LockBorder"]);
+    const mapa = new Map(); const pos = [], zon = [], fdi = [], out = [];
+    for (const v of simplificado) {
+      if (!mapa.has(v)) {
+        mapa.set(v, pos.length / 3);
+        pos.push(Pw[3 * v], Pw[3 * v + 1], Pw[3 * v + 2]);
+        zon.push(ZONA[v]); fdi.push(fdiOf[v]);
+      }
+      out.push(mapa.get(v));
+    }
+    return { pos: new Float32Array(pos), zon: new Float32Array(zon), fdi: new Float32Array(fdi), idx: new Uint32Array(out) };
+  };
+  const dientes = construir(teethIdx, 9000);
+  const encia = construir(gumIdx, 3000);
+  const pDoc = new Document();
+  const pBuf = pDoc.createBuffer();
+  const pMesh = pDoc.createMesh('proxy');
+  for (const [nombre, d] of [['proxy_dientes', dientes], ['proxy_encia', encia]]) {
+    const p = pDoc.createPrimitive()
+      .setAttribute('POSITION', pDoc.createAccessor(nombre + '_pos').setType('VEC3').setArray(d.pos).setBuffer(pBuf))
+      .setAttribute('_ZONA', pDoc.createAccessor(nombre + '_zona').setType('SCALAR').setArray(d.zon).setBuffer(pBuf))
+      .setAttribute('_FDI', pDoc.createAccessor(nombre + '_fdi').setType('SCALAR').setArray(d.fdi).setBuffer(pBuf))
+      .setIndices(pDoc.createAccessor(nombre + '_idx').setType('SCALAR').setArray(d.idx).setBuffer(pBuf))
+      .setMaterial(pDoc.createMaterial(nombre));
+    pMesh.addPrimitive(p);
+  }
+  pDoc.createScene().addChild(pDoc.createNode('proxy_node').setMesh(pMesh));
+  // Comprimida igual que las arcadas (con más bits en los atributos propios,
+  // para que el número de pieza no se deforme al cuantizar)
+  pDoc.createExtension(KHRDracoMeshCompression).setRequired(true)
+    .setEncoderOptions({ quantizationVolume: 'scene', quantizationBits: { POSITION: 14, GENERIC: 16 } });
+  await io.write(proxyFile, pDoc);
+  log('proxy', (dientes.idx.length + encia.idx.length) / 3, 'triángulos ·', (fs.statSync(proxyFile).size / 1024).toFixed(0), 'KB');
+}
+
 await io.write(outFile, doc);
 log('escrito', outFile, (fs.statSync(outFile).size / 1e6).toFixed(1), 'MB');
