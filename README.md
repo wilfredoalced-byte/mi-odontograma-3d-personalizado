@@ -38,7 +38,7 @@ mi-odontograma-3d/
 └── .github/workflows/deploy-pages.yml     ✅ deploy automático a Pages en cada push a main
 ```
 
-Repo completo: **~14MB**. Cada arcada pesa entre 1,4MB y 1,6MB (1 MB menos en la versión ligera para móviles), más la malla-proxy de selección.
+Repo completo: **~25MB**. Cada arcada pesa entre 2,6MB y 3,0MB (~1MB en la versión ligera para móviles), más la malla-proxy de selección.
 
 ## Por qué los .glb están comprimidos
 
@@ -126,19 +126,27 @@ El visor movía 3,09 millones de triángulos por cuadro y cada movimiento del cu
 
 | Medida | Antes | Ahora |
 |---|---|---|
-| Triángulos dibujados | 3.089.236 | 660.904 |
+| Triángulos dibujados | 3.089.236 | 1.367.890 |
 | Carga hasta "Listo" | 16,6 s | ~5 s |
 | Consulta del cursor / clic | 500–800 ms | 3–5 ms |
 | Cuadros dibujados en reposo | ~60/s | 0 |
-| Peso por arcada | 7,7–11,5 MB | 1,4–1,6 MB (+0,1–0,2 MB de malla-proxy) |
+| Peso por arcada | 7,7–11,5 MB | 2,6–3,0 MB (+0,1–0,2 MB de malla-proxy) |
 
-- **Geometría.** Cada primitiva se simplifica por separado con meshoptimizer: los dientes conservan el 32% de sus triángulos (los surcos y las cúspides se mantienen) y la encía baja al 8%, donde no se nota. Se descartan las caras traseras (`FrontSide`) salvo en la arcada superior, cuya malla viene espejada.
+- **Geometría.** Cada primitiva se simplifica por separado con meshoptimizer: los dientes conservan el 62% de sus triángulos (curvatura y surcos intactos) y la encía el 22%, suficiente para que el festoneado del margen siga siendo continuo. Se descartan las caras traseras (`FrontSide`) salvo en la arcada superior, cuya malla viene espejada.
 - **Texturas.** Ya no hay ninguna: el color va por vértice y el relieve lo da la malla. Se eliminaron el mapa de color y el de normales de 2048 px que seguían viajando en el archivo.
 - **Compresión.** Draco con cuantización a 12 bits en las arcadas y 14/16 bits en la malla-proxy.
 - **Malla-proxy** (`proxy_*.glb`, ~30.000 triángulos, invisible): lleva el número de pieza y la zona anatómica por vértice. El cursor y la selección consultan esta malla, no el escaneo. Es lo que devolvió la fluidez al pasar el ratón.
 - **Dibujo bajo demanda.** Solo se redibuja cuando algo cambia (cámara, capas, marcas). En reposo el visor no consume nada.
 - **Carga diferida.** Dentina, cámara pulpar, conductos, ligamento y hueso se generan la primera vez que se enciende su capa (unos 50 ms), no al abrir la arcada.
-- **Equipos modestos.** Si el navegador es táctil con pantalla chica, o declara ≤4 GB de memoria o ≤4 núcleos, se carga `arcada_*_lite.glb` (10% de los triángulos de los dientes, 3% de la encía), se baja el pixel ratio a 1,25 y se prescinde de la tercera luz. En total, 2 o 3 luces según el equipo; no hay sombras dinámicas (el volumen viene del sombreado por curvatura horneado en los vértices).
+- **Equipos modestos.** Si el navegador es táctil con pantalla chica, o declara ≤4 GB de memoria o ≤4 núcleos, se carga `arcada_*_lite.glb` (18% de los triángulos de los dientes, 7% de la encía), se baja el pixel ratio a 1,25 y se prescinde de la tercera luz. En total, 2 o 3 luces según el equipo; no hay sombras dinámicas (el volumen viene del sombreado por curvatura horneado en los vértices).
+
+### Acabado visual
+
+El brillo del esmalte viene del material, no de subir la luz: `MeshPhysicalMaterial` con barniz (`clearcoat` 0.72, rugosidad 0.09) y `sheen` azulado, que da el halo translúcido de bordes y cúspides. La encía usa el mismo recurso con más barniz y menos reflejo (aspecto húmedo, no plástico). Se probó mapeo tonal ACES y se descartó: apagaba los colores exactos de la paleta.
+
+Las raíces ya no son conos de revolución: se barren anillos a lo largo de un eje curvo, con el cuello algo más ancho, adelgazamiento progresivo y ápice redondeado. Las transiciones esmalte → dentina cervical → raíz se hornean con rampas más largas, para que no queden líneas de corte.
+
+Si aun así el equipo no alcanza unos 38 cuadros por segundo, el visor baja solo al nivel ligero durante esa sesión (se mide la mediana de los cuadros, pasados los primeros 3 segundos de carga).
 
 Colores, dorado de interfaz, numeración FDI, código de estado, vistas, corte y etiquetas se mantienen igual.
 

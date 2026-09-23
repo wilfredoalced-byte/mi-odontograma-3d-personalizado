@@ -15,7 +15,7 @@ import sharp from 'sharp';
 
 const [inFile, posFile, outFile, rootsFile, proxyFile, modo] = process.argv.slice(2);
 const LITE = modo === 'lite';                       // versión ligera para móviles
-const RATIO_DIENTES = LITE ? 0.10 : 0.32, RATIO_ENCIA = LITE ? 0.03 : 0.08;
+const RATIO_DIENTES = LITE ? 0.18 : 0.62, RATIO_ENCIA = LITE ? 0.07 : 0.22;
 await MeshoptSimplifier.ready;
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({
   'draco3d.decoder': await draco3d.createDecoderModule(),
@@ -208,7 +208,7 @@ log('distancias al margen listas');
 const lin = h => [0, 2, 4].map(s => { const c = parseInt(h.slice(1 + s, 3 + s), 16) / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
 const ESMALTE = lin('#F5F0E6'), DENTINA = lin('#F2E2C4'), FISURA = lin('#A5875F'), FOSA = lin('#DCC7A3'), BORDE = lin('#F0E8D8');
 const RAIZ = lin('#E8D4B9');
-const ENCIA = lin('#E8A8B0'), MARGEN = lin('#F0C8D0'), SURCO_ENCIA = lin('#C98A93');
+const ENCIA = lin('#F8C8C8'), MARGEN = lin('#EFB0B8'), SURCO_ENCIA = lin('#D9959C');
 const ss = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
 const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 const COL = new Float32Array(nV * 3);
@@ -217,14 +217,14 @@ for (let i = 0; i < nV; i++) {
   let c;
   if (!gum[i]) {
     c = ESMALTE;
-    c = mix(c, DENTINA, 0.6 * (1 - ss(0.0, 0.07, dist[i])));   // tercio cervical: el esmalte es más delgado y la dentina se transparenta
+    c = mix(c, DENTINA, 0.5 * (1 - ss(0.0, 0.11, dist[i])));   // tercio cervical: el esmalte es más delgado y la dentina se transparenta
     c = mix(c, FOSA, 0.55 * ss(kB.g0, kB.g1, broad[i]));        // fosas y troneras (sombra amplia)
     c = mix(c, BORDE, 0.55 * ss(kB.c0, kB.c1, broad[i]) + 0.3 * ss(kT.c0, kT.c1, curv[i])); // cúspides y bordes: esmalte más translúcido
-    c = mix(c, FISURA, 0.85 * ss(kT.g0, kT.g1, curv[i]));       // surcos y fisuras
-    c = mix(c, RAIZ, 0.9 * ss(0.004, 0.03, srcH[i] - hOf(i)));  // lo que queda por debajo del margen gingival ya es raíz
+    c = mix(c, FISURA, 0.7 * ss(kT.g0, kT.g1, curv[i]));       // surcos y fisuras
+    c = mix(c, RAIZ, 0.85 * ss(0.002, 0.075, srcH[i] - hOf(i)));  // lo que queda por debajo del margen gingival ya es raíz
   } else {
     c = ENCIA;
-    c = mix(c, MARGEN, 0.55 * (1 - ss(0.0, 0.035, dist[i])));   // encía marginal y papilas
+    c = mix(c, MARGEN, 0.45 * (1 - ss(0.0, 0.055, dist[i])));   // encía marginal y papilas
     c = mix(c, SURCO_ENCIA, 0.45 * ss(kG.g0, kG.g1, curv[i]));
     const v = 0.94 + 0.1 * lum[i];                              // variación suave tomada de la textura original
     c = [c[0] * v, c[1] * v, c[2] * v];
@@ -266,8 +266,8 @@ oldMat.dispose();
 
 // Menos polígonos donde no se nota (encía) y detalle donde sí (dientes)
 const antes = [teethIdx.length / 3, gumIdx.length / 3];
-await simplifyPrimitive(prim, { simplifier: MeshoptSimplifier, ratio: RATIO_DIENTES, error: 0.0015, lockBorder: true });
-await simplifyPrimitive(gumPrim, { simplifier: MeshoptSimplifier, ratio: RATIO_ENCIA, error: 0.006, lockBorder: true });
+await simplifyPrimitive(prim, { simplifier: MeshoptSimplifier, ratio: RATIO_DIENTES, error: 0.0004, lockBorder: true });
+await simplifyPrimitive(gumPrim, { simplifier: MeshoptSimplifier, ratio: RATIO_ENCIA, error: 0.0015, lockBorder: true });
 await doc.transform(prune());
 log('simplificado: dientes', antes[0], '→', prim.getIndices().getCount() / 3, '· encía', antes[1], '→', gumPrim.getIndices().getCount() / 3);
 

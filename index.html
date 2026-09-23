@@ -965,16 +965,18 @@
         return (tactil && pantallaChica) || pocaMemoria || pocosNucleos;
       } catch (e) { return false; }
     })();
-    const arcadaGlb = (nombre) => EQUIPO_LIGERO ? `./arcada_${nombre}_lite.glb` : `./arcada_${nombre}.glb`;
+    let modoLigero = EQUIPO_LIGERO;
+    try { if (sessionStorage.getItem("odontograma-ligero") === "1") modoLigero = true; } catch (e) {}
+    const arcadaGlb = (nombre) => modoLigero ? `./arcada_${nombre}_lite.glb` : `./arcada_${nombre}.glb`;
 
     const CONFIG = {
       adult: {
-        inferior: { glb: arcadaGlb('inferior'), json: './dientes_posiciones.json', raices: './raices_inferior.json', proxy: './proxy_inferior.glb' },
-        superior: { glb: arcadaGlb('superior'), json: './dientes_superiores_posiciones.json', raices: './raices_superior.json', proxy: './proxy_superior.glb' }
+        inferior: { base: 'inferior', json: './dientes_posiciones.json', raices: './raices_inferior.json', proxy: './proxy_inferior.glb' },
+        superior: { base: 'superior', json: './dientes_superiores_posiciones.json', raices: './raices_superior.json', proxy: './proxy_superior.glb' }
       },
       temporal: {
-        inferior: { glb: arcadaGlb('temporal_inferior'), json: './dientes_temporales_inferiores.json', raices: './raices_temporal_inferior.json', proxy: './proxy_temporal_inferior.glb' },
-        superior: { glb: arcadaGlb('temporal_superior'), json: './dientes_temporales_superiores.json', raices: './raices_temporal_superior.json', proxy: './proxy_temporal_superior.glb' }
+        inferior: { base: 'temporal_inferior', json: './dientes_temporales_inferiores.json', raices: './raices_temporal_inferior.json', proxy: './proxy_temporal_inferior.glb' },
+        superior: { base: 'temporal_superior', json: './dientes_temporales_superiores.json', raices: './raices_temporal_superior.json', proxy: './proxy_temporal_superior.glb' }
       }
     };
 
@@ -1089,15 +1091,15 @@
     // colores por vértice ya horneados: dentina cervical, surcos, cúspides y encía marginal.
     const DENTAL_MATERIALS = {
       esmalte: new THREE.MeshPhysicalMaterial({
-        vertexColors: true, roughness: 0.26, metalness: 0,
-        clearcoat: 0.4, clearcoatRoughness: 0.2,
-        sheen: new THREE.Color(0x2b3542),           // halo translúcido en bordes, como el esmalte incisal
-        envMapIntensity: 0.45, side: THREE.DoubleSide,
+        vertexColors: true, roughness: 0.16, metalness: 0,
+        clearcoat: 0.72, clearcoatRoughness: 0.09,   // esmalte pulido, no mate
+        sheen: new THREE.Color(0x3d4a5e),            // halo translúcido en bordes y cúspides
+        envMapIntensity: 0.5, side: THREE.DoubleSide,
       }),
       encia: new THREE.MeshPhysicalMaterial({
-        vertexColors: true, roughness: 0.55, metalness: 0,
-        clearcoat: 0.6, clearcoatRoughness: 0.18,   // película húmeda
-        envMapIntensity: 0.3, side: THREE.DoubleSide,
+        vertexColors: true, roughness: 0.40, metalness: 0,
+        clearcoat: 0.85, clearcoatRoughness: 0.12,  // película húmeda, sin llegar a plástico
+        envMapIntensity: 0.35, side: THREE.DoubleSide,
         normalScale: new THREE.Vector2(0.35, 0.35), // textura suave
       }),
       raiz: new THREE.MeshStandardMaterial({ color: 0xE8D4B9, roughness: 0.92, metalness: 0, envMapIntensity: 0.35 }),
@@ -1116,7 +1118,7 @@
     // Profundidad de cada estructura: 0 = la más externa.
     const ANATOMY_DEPTH = { encia: 0, hueso: 1, ligamento: 2, esmalte: 3, raices: 3, dentina: 4, pulpa: 5 };
     const anatomyOn = { encia: true, hueso: false, ligamento: false, esmalte: true, dentina: false, pulpa: false };
-    const TRANSLUCENT = { encia: 0.42, hueso: 0.55, esmalte: 0.28, raiz: 0.4 };
+    const TRANSLUCENT = { encia: 0.58, hueso: 0.55, esmalte: 0.3, raiz: 0.45 };
 
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -1124,15 +1126,15 @@
     controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
     controls.addEventListener("change", () => invalidar(2));
 
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x8f8480, 0.38);
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x8f8480, 0.40);
     scene.add(hemiLight);
 
-    const mainLight = new THREE.DirectionalLight(0xfffaf2, 0.5);
+    const mainLight = new THREE.DirectionalLight(0xfffaf2, 0.55);
     mainLight.position.set(4, 8, 6); // luz principal a 45° desde arriba
     scene.add(mainLight);
 
     // Tercera luz solo en equipos con margen: en móvil bastan la hemisférica y la principal
-    const rimLight = new THREE.DirectionalLight(0x94a3b8, 0.22);
+    const rimLight = new THREE.DirectionalLight(0x94a3b8, 0.26);
     rimLight.position.set(-6, -6, -5);
     if (!EQUIPO_LIGERO) scene.add(rimLight);
 
@@ -1246,7 +1248,7 @@
       document.getElementById('btn-theme-toggle').innerText = isDarkMode ? '🌙' : '☀️';
       scene.background = isDarkMode ? fondoDegradado('#1b1014', '#0B0709') : fondoDegradado('#F4EEEB', '#DFD2CD');
       hemiLight.groundColor.setHex(isDarkMode ? 0x1e293b : 0x8f8480);
-      hemiLight.intensity = isDarkMode ? 0.6 : 0.38;
+      hemiLight.intensity = isDarkMode ? 0.62 : 0.40;
     };
 
     window.toggleBottomSheet = function() {
@@ -1365,17 +1367,38 @@
         : [{ L: 1.7 * k, m: 0.25, tm: 0.12, r: 0.55, rb: 1.3 }, { L: 1.6 * k, m: -0.25, tm: -0.1, r: 0.52, rb: 1.3 }];
     }
 
-    function rootGeometry(length, rMD, rBL, lift) {
-      const pts = [];
-      const steps = 18;
-      pts.push(new THREE.Vector2(1, lift));
-      for (let i = 0; i <= steps; i++) {
-        const t = i / steps;
-        const r = Math.pow(Math.max(0, 1 - Math.pow(t, 1.8)), 0.55); // se afina hacia el ápice y cierra redondeado
-        pts.push(new THREE.Vector2(Math.max(r, 0.0001), -t * length));
+    // Raíz anatómica: cuello algo más ancho, cuerpo que se afina y se curva, ápice redondeado.
+    // Se construye barriendo anillos a lo largo de un eje curvo, no como cono recto.
+    function rootGeometry(length, rMD, rBL, lift, curva) {
+      const SEG = 26, LADOS = 24;
+      const flexion = curva === undefined ? 0.07 : curva;      // desvío del ápice, como en una raíz real
+      const pos = [], idx = [];
+      for (let i = 0; i <= SEG; i++) {
+        const t = i / SEG;
+        const y = lift - t * (length + lift);
+        // Perfil: ligero ensanchamiento cervical, adelgazamiento progresivo y cierre redondeado
+        const r = Math.pow(Math.max(0, 1 - Math.pow(t, 2.1)), 0.42) * (1 + 0.10 * Math.pow(1 - t, 2.5));
+        const desvio = flexion * length * Math.sin(Math.PI * 0.62 * t) * t;
+        for (let j = 0; j < LADOS; j++) {
+          const a = (j / LADOS) * Math.PI * 2;
+          pos.push(desvio + Math.cos(a) * r * rMD, y, Math.sin(a) * r * rBL);
+        }
       }
-      const g = new THREE.LatheGeometry(pts, 20);
-      g.scale(rMD, 1, rBL);
+      const apice = pos.length / 3;
+      pos.push(flexion * length * Math.sin(Math.PI * 0.62) , lift - (length + lift) - 0.02 * length, 0);
+      for (let i = 0; i < SEG; i++) {
+        for (let j = 0; j < LADOS; j++) {
+          const a = i * LADOS + j, b = i * LADOS + (j + 1) % LADOS;
+          idx.push(a, a + LADOS, b, b, a + LADOS, b + LADOS);
+        }
+      }
+      for (let j = 0; j < LADOS; j++) {
+        const a = SEG * LADOS + j, b = SEG * LADOS + (j + 1) % LADOS;
+        idx.push(a, apice, b);
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+      g.setIndex(idx);
       g.computeVertexNormals();
       return g;
     }
@@ -1899,7 +1922,7 @@
         if (res.ok) rootsData = await res.json();
       } catch (err) { rootsData = null; }
 
-      loader.load(setting.glb, (gltf) => {
+      loader.load(arcadaGlb(setting.base), (gltf) => {
         if (loadToken !== currentLoadToken) return;
 
         activeModel = gltf.scene;
@@ -2004,6 +2027,13 @@
       });
     };
 
+    // Las marcas clínicas llevan colores de código: se dejan fuera del mapeo tonal
+    function coloresExactos(grupo) {
+      grupo.traverse(o => {
+        if (o.material && o.material.toneMapped !== false) { o.material.toneMapped = false; o.material.needsUpdate = true; }
+      });
+    }
+
     function renderAllLayers() {
       invalidar(2);
       renderClinicalPathologies();
@@ -2019,6 +2049,9 @@
       renderOrtho();
       renderPediatric();
       updateRootsForRecords();
+      [pathologiesGroup, perioGroup, bridgesGroup, removableGroup, occlusionGroup, traumaGroup,
+       malpositionGroup, esteticaGroup, orthoGroup, pediatricGroup, surgeryGroup, endoGroup,
+       fdiLabelsGroup, estadoGroup, contactosGroup, oclusalLineGroup].forEach(g => g && coloresExactos(g));
     }
 
     // Sistema Limpio de Marcas por Caras (Alto Contraste Clínico)
@@ -3628,6 +3661,24 @@
     });
 
     let pedirCuadro = 0;                    // cuadros pendientes de dibujar
+    const muestrasCuadro = [];              // duración de los últimos cuadros dibujados
+
+    // Si el equipo no da abasto con la malla detallada, se baja sola al nivel ligero.
+    const inicioVisor = performance.now();
+    function vigilarFluidez(ms) {
+      if (modoLigero || muestrasCuadro.length > 60) return;
+      if (performance.now() - inicioVisor < 3000) return;   // los primeros cuadros tras la carga no cuentan
+      muestrasCuadro.push(ms);
+      if (muestrasCuadro.length < 45) return;
+      const ordenadas = [...muestrasCuadro].sort((a, b) => a - b);
+      const mediana = ordenadas[Math.floor(ordenadas.length / 2)];
+      if (mediana > 26) {                   // por debajo de ~38 cuadros por segundo
+        modoLigero = true;
+        try { sessionStorage.setItem("odontograma-ligero", "1"); } catch (e) {}
+        muestrasCuadro.length = 61;
+        loadArchData();
+      }
+    }
     function invalidar(n) { pedirCuadro = Math.max(pedirCuadro, n || 2); }
 
     function animate() {
@@ -3641,7 +3692,12 @@
       }
       const movio = controls.update();      // devuelve true mientras la inercia sigue viva
       if (movio || camAnim) invalidar(2);
-      if (pedirCuadro > 0) { pedirCuadro--; renderer.render(scene, camera); }
+      if (pedirCuadro > 0) {
+        pedirCuadro--;
+        const t0 = performance.now();
+        renderer.render(scene, camera);
+        vigilarFluidez(performance.now() - t0);
+      }
     }
 
     loadArchData();
