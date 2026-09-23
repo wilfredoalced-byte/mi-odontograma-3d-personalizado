@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%A6%B7</text></svg>">
   <title>Odontograma 3D — Fassiara Clínica Odontológica y Estética</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <meta name="theme-color" content="#BE123C">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Odontograma">
   <style>
     :root {
       --bg-app: #e7dbd6;
@@ -121,6 +125,44 @@
     }
     body.dark-mode #avisos-clinicos { background: #3b2a0c; color: #FDE68A; border-color: #B45309; }
     #anatomy-bar.open ~ #avisos-clinicos { top: 250px; }
+    .grupo-precio { margin-bottom: 10px; }
+    .grupo-precio-tit {
+      font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+      color: #B08D2B; margin: 8px 0 4px;
+    }
+    .fila-precio {
+      display: grid; grid-template-columns: 1fr auto 86px; align-items: center; gap: 8px;
+      padding: 4px 6px; border-radius: 7px; font-size: 12px;
+    }
+    .fila-precio:nth-child(even) { background: var(--bg-card); }
+    .fila-precio .moneda { color: var(--text-muted); font-size: 11px; }
+    .fila-precio input {
+      width: 100%; padding: 5px 7px; border-radius: 7px; text-align: right;
+      border: 1px solid var(--border-color); background: var(--bg-panel); color: var(--text-primary); font-size: 12px;
+    }
+    /* Modo paciente: solo el modelo, sin controles clínicos */
+    body.modo-paciente #top-bar,
+    body.modo-paciente #layer-floating-bar,
+    body.modo-paciente #anatomy-bar,
+    body.modo-paciente #specialty-rail,
+    body.modo-paciente #bottom-sheet,
+    body.modo-paciente #tooth-card,
+    body.modo-paciente #avisos-clinicos,
+    body.modo-paciente #status { display: none !important; }
+    #salir-paciente {
+      position: absolute; top: 16px; right: 16px; display: none; align-items: center; gap: 6px; z-index: 130;
+      background: var(--bg-panel); border: 1px solid #D4AF37; color: var(--text-secondary);
+      padding: 9px 14px; border-radius: 999px; font-size: 12px; font-weight: 700; cursor: pointer;
+      box-shadow: var(--shadow-elevation); backdrop-filter: blur(10px);
+    }
+    .fila-comparacion {
+      display: flex; align-items: center; gap: 8px; font-size: 11.5px;
+      padding: 6px 4px; border-bottom: 1px solid var(--border-subtle);
+    }
+    .fila-comparacion .pastilla {
+      color: #fff; font-size: 9.5px; font-weight: 800; text-transform: uppercase;
+      padding: 2px 7px; border-radius: 999px; letter-spacing: 0.5px;
+    }
     #aviso-ficha {
       position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: none; z-index: 150;
       background: rgba(15,23,42,0.92); color: #fff; font-size: 12px; font-weight: 600;
@@ -488,6 +530,7 @@
       <button class="touch-btn" id="btn-undo" onclick="deshacer()" title="Deshacer (Ctrl+Z)" disabled>↶</button>
       <button class="touch-btn" id="btn-redo" onclick="rehacer()" title="Rehacer (Ctrl+Y)" disabled>↷</button>
       <button class="touch-btn" id="btn-ficha" onclick="abrirFichaModal()" title="Guardar o abrir la ficha">💾 Ficha</button>
+      <button class="touch-btn" id="btn-paciente" onclick="alternarModoPaciente()" title="Vista limpia para explicar al paciente">👁️ Paciente</button>
       <button class="touch-btn" id="btn-anatomy" onclick="toggleAnatomyBar()">🦴 Anatomía</button>
       <button class="touch-btn btn-pdf" onclick="openConsentModal('pdf')">📄 PDF</button>
     </div>
@@ -855,6 +898,9 @@
         <button class="touch-btn" style="background:#16a34a; border-color:#22c55e; color:#fff;" onclick="closeBudgetModal(); openConsentModal('ghl');">🚀 Sincronizar con GHL</button>
         <button class="touch-btn btn-pdf" onclick="closeBudgetModal(); openConsentModal('pdf');">📄 Descargar Historia Clínica</button>
       </div>
+      <div class="modal-btns" style="margin-top:6px;">
+        <button class="touch-btn" style="width:100%;" onclick="closeBudgetModal(); abrirPrecios();">🏷️ Editar lista de precios</button>
+      </div>
     </div>
   </div>
 
@@ -993,6 +1039,10 @@
         <input type="file" accept="application/json,.json" style="display:none;" onchange="importarFicha(this)">
       </label>
       <p style="font-size:10.5px; color:var(--text-muted); margin:6px 0 10px;">El archivo guarda todo lo marcado y los datos del formulario, para seguir en otro equipo o comparar en la próxima cita.</p>
+      <label class="touch-btn" style="width:100%; display:block; text-align:center; margin-bottom:8px; cursor:pointer;">
+        🔍 Comparar con una visita anterior
+        <input type="file" accept="application/json,.json" style="display:none;" onchange="cerrarFichaModal(); compararConArchivo(this)">
+      </label>
       <div class="modal-btns">
         <button class="touch-btn" onclick="borrarFichaGuardada()">🗑️ Borrar copia de este equipo</button>
         <button class="touch-btn active" onclick="cerrarFichaModal()">Cerrar</button>
@@ -1001,6 +1051,47 @@
   </div>
 
   <div id="avisos-clinicos"></div>
+  <!-- Tarifa de la clínica -->
+  <div id="precios-modal" class="modal-overlay">
+    <div class="modal-card" style="max-width:560px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:17px;">Lista de precios</h3>
+        <button onclick="cerrarPrecios()" style="background:none; border:none; font-size:18px; cursor:pointer; color:var(--text-muted);">✕</button>
+      </div>
+      <p id="precios-origen" style="font-size:11.5px; color:var(--text-muted); margin:4px 0 10px;"></p>
+      <div id="lista-precios" style="max-height:46vh; overflow-y:auto; padding-right:4px;"></div>
+      <div class="modal-btns" style="margin-top:10px;">
+        <button class="touch-btn" onclick="restaurarPrecios()">↺ Precios de referencia</button>
+        <button class="touch-btn btn-pdf" onclick="guardarPrecios()">Guardar tarifa</button>
+      </div>
+      <div class="modal-btns" style="margin-top:6px;">
+        <button class="touch-btn" onclick="exportarPrecios()">💾 Exportar tarifa</button>
+        <label class="touch-btn" style="cursor:pointer;">📂 Importar tarifa
+          <input type="file" accept="application/json,.json" style="display:none;" onchange="importarPrecios(this)">
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <button id="salir-paciente" onclick="alternarModoPaciente()">✕ Salir del modo paciente</button>
+
+  <!-- Diferencias con la visita anterior -->
+  <div id="comparacion-modal" class="modal-overlay">
+    <div class="modal-card" style="max-width:560px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:17px;">Cambios desde la visita anterior</h3>
+        <button onclick="cerrarComparacion()" style="background:none; border:none; font-size:18px; cursor:pointer; color:var(--text-muted);">✕</button>
+      </div>
+      <p id="comparacion-fecha" style="font-size:11.5px; color:var(--text-muted); margin:4px 0 10px;"></p>
+      <div id="lista-comparacion" style="max-height:46vh; overflow-y:auto;"></div>
+      <p style="font-size:10.5px; color:var(--text-muted); margin:10px 0 0;">Las piezas con cambios quedan marcadas con un anillo de color sobre el modelo.</p>
+      <div class="modal-btns" style="margin-top:10px;">
+        <button class="touch-btn" onclick="quitarResaltado()">Quitar marcas del modelo</button>
+        <button class="touch-btn active" onclick="cerrarComparacion()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="anat-tooltip"></div>
   <div id="tooth-card">
     <h4 id="card-fdi">—</h4>
@@ -1069,6 +1160,115 @@
       aparato_funcional: 1440, retenedor: 340
     };
 
+
+    // Nombres legibles y agrupación para el panel de precios
+    const ARANCELES_BASE = { ...ARANCELES };
+    const CLAVE_PRECIOS = 'fassiara-odontograma-precios';
+    const GRUPOS_PRECIOS = [
+      ['Odontología general', ['caries', 'resina', 'sellante', 'profilaxis', 'corona', 'implante']],
+      ['Endodoncia', ['endodoncia', 'endo_unico', 'endo_molar', 'perno_munon', 'perno']],
+      ['Cirugía', ['exodoncia', 'resto_radicular', 'impactado', 'lesion', 'lesion_apicectomia', 'bloque', 'seno', 'rog']],
+      ['Periodoncia', ['gingivectomia', 'colgajo', 'rtg_perio', 'alargamiento']],
+      ['Prótesis fija', ['inlay', 'onlay', 'overlay', 'carilla', 'puente_tramo']],
+      ['Prótesis removible', ['protesis_total', 'ppr_esqueletica', 'ppr_flexible', 'gancho_ppr']],
+      ['Oclusión y trauma', ['plano_miorrelajante', 'rehabilitacion_faceta', 'trauma_incompleta', 'trauma_pulpar', 'trauma_radicular']],
+      ['Estética', ['blanqueamiento_arcada']],
+      ['Odontopediatría', ['fluor_focal', 'fluor_arcada', 'pulpotomia', 'pulpectomia', 'mantenedor']],
+      ['Ortodoncia y ortopedia', ['bracket_metal', 'bracket_zafiro', 'arco_orto', 'aparato_funcional', 'retenedor', 'malposicion_correccion']],
+    ];
+    const NOMBRES_PRECIOS = {
+      caries: 'Caries (por diente)', resina: 'Resina (por cara)', sellante: 'Sellante', profilaxis: 'Profilaxis',
+      corona: 'Corona', implante: 'Implante', endodoncia: 'Endodoncia', endo_unico: 'Endodoncia unirradicular',
+      endo_molar: 'Endodoncia multirradicular', perno_munon: 'Perno y muñón', perno: 'Perno',
+      exodoncia: 'Exodoncia', resto_radicular: 'Resto radicular', impactado: 'Pieza impactada',
+      lesion: 'Quiste / lesión apical', lesion_apicectomia: 'Apicectomía', bloque: 'Injerto en bloque',
+      seno: 'Elevación de seno', rog: 'Regeneración ósea guiada', gingivectomia: 'Gingivectomía',
+      colgajo: 'Cirugía de colgajo', rtg_perio: 'Regeneración tisular guiada', alargamiento: 'Alargamiento coronario',
+      inlay: 'Inlay', onlay: 'Onlay', overlay: 'Overlay', carilla: 'Carilla', puente_tramo: 'Puente (por tramo)',
+      protesis_total: 'Prótesis total', ppr_esqueletica: 'PPR esquelética', ppr_flexible: 'PPR flexible',
+      gancho_ppr: 'Gancho de PPR', plano_miorrelajante: 'Férula miorrelajante', rehabilitacion_faceta: 'Faceta de desgaste',
+      trauma_incompleta: 'Fractura coronaria', trauma_pulpar: 'Fractura con exposición pulpar', trauma_radicular: 'Fractura radicular',
+      blanqueamiento_arcada: 'Blanqueamiento (por arcada)', fluor_focal: 'Flúor focal', fluor_arcada: 'Flúor por arcada',
+      pulpotomia: 'Pulpotomía', pulpectomia: 'Pulpectomía', mantenedor: 'Mantenedor de espacio',
+      bracket_metal: 'Bracket metálico', bracket_zafiro: 'Bracket de zafiro', arco_orto: 'Arco ortodóntico',
+      aparato_funcional: 'Aparato funcional', retenedor: 'Retenedor', malposicion_correccion: 'Corrección de malposición',
+    };
+
+    // Si la clínica ya cargó su tarifa, manda sobre los precios de referencia
+    (function cargarPrecios() {
+      try {
+        const guardados = JSON.parse(localStorage.getItem(CLAVE_PRECIOS) || 'null');
+        if (guardados) Object.entries(guardados).forEach(([k, v]) => { if (typeof v === 'number' && v >= 0) ARANCELES[k] = v; });
+      } catch (e) { /* sin acceso a almacenamiento: se usan los de referencia */ }
+    })();
+
+    window.abrirPrecios = function() {
+      const cont = document.getElementById('lista-precios');
+      cont.innerHTML = GRUPOS_PRECIOS.map(([grupo, claves]) => `
+        <div class="grupo-precio">
+          <div class="grupo-precio-tit">${grupo}</div>
+          ${claves.filter(k => ARANCELES[k] !== undefined).map(k => `
+            <label class="fila-precio">
+              <span>${NOMBRES_PRECIOS[k] || k}</span>
+              <span class="moneda">S/</span>
+              <input type="number" min="0" step="10" data-arancel="${k}" value="${ARANCELES[k]}">
+            </label>`).join('')}
+        </div>`).join('');
+      const marca = document.getElementById('precios-origen');
+      let guardado = null;
+      try { guardado = JSON.parse(localStorage.getItem(CLAVE_PRECIOS) || 'null'); } catch (e) {}
+      marca.textContent = guardado
+        ? 'Estás usando la tarifa de la clínica guardada en este equipo.'
+        : 'Estás usando los precios de referencia. Edítalos y guarda para usar la tarifa de Fassiara.';
+      document.getElementById('precios-modal').style.display = 'flex';
+    };
+    window.cerrarPrecios = function() { document.getElementById('precios-modal').style.display = 'none'; };
+
+    window.guardarPrecios = function() {
+      document.querySelectorAll('#lista-precios input[data-arancel]').forEach(inp => {
+        const v = parseFloat(inp.value);
+        if (!isNaN(v) && v >= 0) ARANCELES[inp.dataset.arancel] = Math.round(v);
+      });
+      try { localStorage.setItem(CLAVE_PRECIOS, JSON.stringify(ARANCELES)); } catch (e) {}
+      calculateBudget();
+      cerrarPrecios();
+      avisoFicha('Tarifa guardada en este equipo');
+    };
+
+    window.restaurarPrecios = function() {
+      Object.entries(ARANCELES_BASE).forEach(([k, v]) => { ARANCELES[k] = v; });
+      try { localStorage.removeItem(CLAVE_PRECIOS); } catch (e) {}
+      calculateBudget();
+      abrirPrecios();
+      avisoFicha('Se restauraron los precios de referencia');
+    };
+
+    window.exportarPrecios = function() {
+      const blob = new Blob([JSON.stringify(ARANCELES, null, 1)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'Tarifa_Fassiara.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
+
+    window.importarPrecios = function(input) {
+      const archivo = input.files && input.files[0];
+      if (!archivo) return;
+      const lector = new FileReader();
+      lector.onload = () => {
+        try {
+          const datos = JSON.parse(lector.result);
+          Object.entries(datos).forEach(([k, v]) => { if (typeof v === 'number' && ARANCELES[k] !== undefined) ARANCELES[k] = v; });
+          try { localStorage.setItem(CLAVE_PRECIOS, JSON.stringify(ARANCELES)); } catch (e) {}
+          calculateBudget();
+          abrirPrecios();
+          avisoFicha('Tarifa importada');
+        } catch (e) { alert('Ese archivo no es una tarifa válida.'); }
+      };
+      lector.readAsText(archivo);
+      input.value = '';
+    };
 
     const VITA_COLORS = {
       'BL1': 0xffffff, 'A1': 0xfaf5eb, 'A2': 0xf5ebd6, 'A3': 0xedd6b4,
@@ -1924,6 +2124,118 @@
       document.getElementById('ficha-modal').style.display = 'flex';
     };
     window.cerrarFichaModal = function() { document.getElementById('ficha-modal').style.display = 'none'; };
+
+    // ---------- Modo paciente: pantalla limpia para explicar el tratamiento ----------
+    let modoPaciente = false;
+    window.alternarModoPaciente = function() {
+      modoPaciente = !modoPaciente;
+      document.body.classList.toggle('modo-paciente', modoPaciente);
+      document.getElementById('salir-paciente').style.display = modoPaciente ? 'flex' : 'none';
+      if (modoPaciente) {
+        document.getElementById('bottom-sheet').classList.add('minimized');
+        setVista('frontal');
+      }
+      invalidar(2);
+    };
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modoPaciente) alternarModoPaciente(); });
+
+    // ---------- Comparar con una visita anterior ----------
+    const ETIQUETA_TRATAMIENTO = {
+      corona: 'corona', implante: 'implante', ausente: 'ausente', sellante: 'sellante',
+      endodoncia: 'endodoncia', exodoncia: 'exodoncia', resto: 'resto radicular', impactado: 'pieza impactada',
+      lesion: 'quiste o lesión', perno: 'perno', inlay: 'inlay', onlay: 'onlay', overlay: 'overlay', carilla: 'carilla',
+    };
+
+    function resumenPieza(rec) {
+      if (!rec) return null;
+      const partes = [];
+      if (rec.faces && Object.keys(rec.faces).length) partes.push(`caras ${Object.keys(rec.faces).join("")}`);
+      ['general', 'surgery', 'restoration', 'pediatric', 'trauma'].forEach(k => {
+        if (rec[k]) partes.push(ETIQUETA_TRATAMIENTO[rec[k]] || rec[k]);
+      });
+      if (rec.canales && Object.values(rec.canales).some(Boolean)) partes.push("conductos");
+      if (!partes.length) return null;
+      const estado = { diagnosticado: "requerido", existente: "previo", realizado: "realizado" }[rec.status] || rec.status;
+      return `${partes.join(", ")} (${estado})`;
+    }
+
+    // Devuelve las diferencias entre la ficha de otra visita y la actual
+    function compararFichas(anterior) {
+      const piezas = new Set([...Object.keys(anterior.clinicalRecords || {}), ...Object.keys(clinicalRecords)]);
+      const filas = [];
+      [...piezas].sort((a, b) => a - b).forEach(fdi => {
+        const antes = resumenPieza((anterior.clinicalRecords || {})[fdi]);
+        const ahora = resumenPieza(clinicalRecords[fdi]);
+        if (antes === ahora) return;
+        let tipo = "cambió";
+        if (!antes) tipo = "nuevo";
+        else if (!ahora) tipo = "resuelto";
+        else if (clinicalRecords[fdi] && clinicalRecords[fdi].status === 'realizado' &&
+                 (anterior.clinicalRecords[fdi] || {}).status === 'diagnosticado') tipo = 'tratado';
+        filas.push({ fdi, tipo, antes, ahora });
+      });
+      return filas;
+    }
+
+    window.compararConArchivo = function(input) {
+      const archivo = input.files && input.files[0];
+      if (!archivo) return;
+      const lector = new FileReader();
+      lector.onload = () => {
+        try {
+          const previa = JSON.parse(lector.result);
+          if (!previa || !previa.clinicalRecords) throw new Error("formato");
+          const filas = compararFichas(previa);
+          const cuando = new Date(previa.guardadoEn);
+          const fecha = isNaN(cuando) ? 'visita anterior' : cuando.toLocaleDateString('es-PE');
+          const cont = document.getElementById('lista-comparacion');
+          const COLORES = { nuevo: "#ef4444", tratado: "#22c55e", resuelto: "#3b82f6", "cambió": "#eab308" };
+          cont.innerHTML = filas.length
+            ? filas.map(f => `<div class="fila-comparacion">
+                <span class="pastilla" style="background:${COLORES[f.tipo]}">${f.tipo}</span>
+                <strong>Pz ${f.fdi}</strong>
+                <span>${f.antes || "sin marcas"} → ${f.ahora || "sin marcas"}</span>
+              </div>`).join("")
+            : '<p style="font-size:12px; color:var(--text-muted);">No hay diferencias entre las dos fichas.</p>';
+          document.getElementById("comparacion-fecha").textContent = `Comparando con la ficha del ${fecha}`;
+          document.getElementById("comparacion-modal").style.display = "flex";
+          resaltarCambios(filas);
+        } catch (e) {
+          alert("Ese archivo no es una ficha del odontograma.");
+        }
+      };
+      lector.readAsText(archivo);
+      input.value = '';
+    };
+
+    // Marca en el modelo las piezas que cambiaron respecto a la visita anterior
+    let cambiosGroup = null;
+    function resaltarCambios(filas) {
+      if (cambiosGroup) { cambiosGroup.parent && cambiosGroup.parent.remove(cambiosGroup); cambiosGroup = null; }
+      if (!filas.length || !rootsGroup) return;
+      const medidas = rootsGroup.userData.medidas;
+      const COLORES = { nuevo: 0xef4444, tratado: 0x22c55e, resuelto: 0x3b82f6, "cambió": 0xeab308 };
+      cambiosGroup = new THREE.Group();
+      filas.forEach(f => {
+        const m = medidas[f.fdi];
+        if (!m) return;
+        const anillo = new THREE.Mesh(new THREE.TorusGeometry(0.46 * m.w, 0.05 * m.w, 8, 24),
+          new THREE.MeshBasicMaterial({ color: COLORES[f.tipo] || 0xeab308, depthTest: false, transparent: true, opacity: 0.9, toneMapped: false }));
+        anillo.position.copy(m.base).addScaledVector(m.axis, m.alto * 1.02);
+        anillo.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), m.axis);
+        cambiosGroup.add(anillo);
+      });
+      activeModel.add(cambiosGroup);
+      invalidar(2);
+    }
+
+    window.cerrarComparacion = function() {
+      document.getElementById('comparacion-modal').style.display = 'none';
+    };
+    window.quitarResaltado = function() {
+      resaltarCambios([]);
+      cerrarComparacion();
+    };
 
     // ---------- Avisos de coherencia clínica ----------
     // No bloquean nada: solo avisan de combinaciones que suelen ser un error de marcado.
@@ -4175,6 +4487,13 @@
         return r;
       };
     });
+
+    // Funciona sin internet una vez abierto: la aplicación y los modelos quedan guardados.
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => { /* sin conexión segura: se sigue sin caché */ });
+      });
+    }
 
     loadArchData();
     animate();

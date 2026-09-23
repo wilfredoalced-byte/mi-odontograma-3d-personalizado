@@ -1,0 +1,16 @@
+{
+  "name": "Odontograma 3D — Fassiara",
+  "short_name": "Odontograma",
+  "description": "Odontograma 3D clínico de Fassiara: marcado por pieza, presupuesto, consentimiento firmado e informes en PDF.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F4EEEB",
+  "theme_color": "#BE123C",
+  "lang": "es-PE",
+  "icons": [
+    { "src": "./logo-fassiara.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./logo-fassiara.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
