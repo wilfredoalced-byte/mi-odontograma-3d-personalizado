@@ -1913,6 +1913,7 @@
     const CAMPOS_FORMULARIO = ['pdf-patient-name', 'pdf-patient-id', 'pdf-patient-phone', 'pdf-doctor-name', 'pdf-doctor-cop', 'med-other-notes'];
     let restaurando = false;               // evita registrar cambios mientras se aplica un estado
     let guardadoPendiente = null;
+    let espacioAvisado = false;
 
     function leerFormulario() {
       const datos = {};
@@ -2056,7 +2057,16 @@
     function guardarBorrador() {
       clearTimeout(guardadoPendiente);
       guardadoPendiente = setTimeout(() => {
-        try { localStorage.setItem(CLAVE_BORRADOR, JSON.stringify(estadoFicha())); } catch (e) { /* modo privado o sin espacio */ }
+        try {
+          localStorage.setItem(CLAVE_BORRADOR, JSON.stringify(estadoFicha()));
+          espacioAvisado = false;
+        } catch (e) {
+          // Sin espacio (suele ser por muchas fotos) o navegación privada: se avisa una vez
+          if (!espacioAvisado) {
+            espacioAvisado = true;
+            avisoFicha("No se pudo guardar la copia automática: guarda la ficha en un archivo");
+          }
+        }
       }, 700);
     }
 
