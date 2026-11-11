@@ -170,65 +170,122 @@
   }, 30e3);
 
   // ---------------------------------------------------------------- pantallas
+  const svgIco = (d, extra) => '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"' + (extra || '') + '>' + d + '</svg>';
+  const ICO = {
+    usuario: svgIco('<path d="M20 21v-1.8a4.2 4.2 0 0 0-4.2-4.2H8.2A4.2 4.2 0 0 0 4 19.2V21"/><circle cx="12" cy="7.2" r="3.8"/>'),
+    candado: svgIco('<rect x="4.2" y="10.5" width="15.6" height="10.3" rx="2.4"/><path d="M8 10.5V7.2a4 4 0 0 1 8 0v3.3"/>'),
+    ojo: svgIco('<path d="M2 12s3.8-6.8 10-6.8S22 12 22 12s-3.8 6.8-10 6.8S2 12 2 12Z"/><circle cx="12" cy="12" r="2.7"/>'),
+    ojoOff: svgIco('<path d="M9.9 5.4A10.6 10.6 0 0 1 12 5.2c6.2 0 10 6.8 10 6.8a19 19 0 0 1-2.4 3.3M6.4 7A18.9 18.9 0 0 0 2 12s3.8 6.8 10 6.8a10 10 0 0 0 4-.8"/><path d="M14.1 14.1A3 3 0 1 1 9.9 9.9"/><path d="m3 3 18 18"/>'),
+    escudo: svgIco('<path d="M12 21.2s7.2-3.4 7.2-9V5.6L12 2.8 4.8 5.6v6.6c0 5.6 7.2 9 7.2 9Z"/><path d="m9.2 11.9 2 2 3.6-3.9"/>'),
+    diente: svgIco('<path d="M7.6 3.2C5.4 3.2 4 5 4 7.6c0 2.3.7 3.4 1.2 5.3.4 1.6.3 3 .7 5 .3 1.4.8 2.1 1.6 2.1 1.1 0 1.3-1.2 1.7-3.1.4-2 .7-3.2 1.8-3.2s1.4 1.2 1.8 3.2c.4 1.9.6 3.1 1.7 3.1.8 0 1.3-.7 1.6-2.1.4-2 .3-3.4.7-5C19.3 11 20 9.9 20 7.6c0-2.6-1.4-4.4-3.6-4.4-1.6 0-2.7.9-4.4.9s-2.8-.9-4.4-.9Z"/>'),
+    archivo: svgIco('<path d="M14 3.2H7.4A2.2 2.2 0 0 0 5.2 5.4v13.2a2.2 2.2 0 0 0 2.2 2.2h9.2a2.2 2.2 0 0 0 2.2-2.2V8.2Z"/><path d="M14 3.2v5h4.8"/><path d="M8.8 13.2h6.4M8.8 16.8h4.2"/>'),
+    rayo: svgIco('<path d="M13.2 2.6 4.8 13.4h6L10.8 21.4l8.4-10.8h-6Z"/>'),
+    alerta: svgIco('<circle cx="12" cy="12" r="9"/><path d="M12 7.6v5M12 16.2h.01"/>'),
+  };
+
+  // ---------------------------------------------------------------- pantallas
   function pantallaAcceso() {
     const d = leerDatos();
     const primerUso = d.usuarios.length === 0;
     return `
-      <div class="acceso-tarjeta">
-        <img class="acceso-logo" src="./logo-fassiara.png" alt="Fassiara">
-        <h1 class="acceso-marca">FASSIARA</h1>
-        <p class="acceso-sub">Clínica Odontológica y Estética</p>
-        <div class="acceso-filete"></div>
-        ${primerUso ? formPrimerUso() : formIngreso()}
-        <p class="acceso-pie">Odontograma 3D · Uso exclusivo del personal de la clínica<br>Los datos de los pacientes se guardan solo en este equipo</p>
+      <div class="acceso-escena">
+
+        <aside class="acceso-marca-panel">
+          <div class="marca-cabecera">
+            <img class="acceso-logo" src="./logo-fassiara.png" alt="Fassiara">
+            <div>
+              <h1 class="acceso-marca">FASSIARA</h1>
+              <p class="acceso-sub">Clínica Odontológica y Estética</p>
+            </div>
+          </div>
+
+          <div class="marca-centro">
+            <p class="marca-rubro">Plataforma clínica</p>
+            <h2 class="marca-lema">Odontograma<br>tridimensional</h2>
+            <p class="marca-texto">Ficha dental, presupuesto y documentos del paciente en una sola pantalla, al lado del sillón.</p>
+            <ul class="marca-lista">
+              <li>${ICO.diente}<span>Las 32 piezas con su estado clínico</span></li>
+              <li>${ICO.archivo}<span>Presupuesto y consentimiento al instante</span></li>
+              <li>${ICO.rayo}<span>Funciona también sin internet</span></li>
+            </ul>
+          </div>
+
+          <p class="marca-pie">Uso exclusivo del personal de la clínica</p>
+        </aside>
+
+        <main class="acceso-panel-form">
+          <div class="acceso-tarjeta">
+            ${primerUso ? formPrimerUso() : formIngreso()}
+            <p class="acceso-pie">${ICO.escudo}<span>Las claves se guardan cifradas y los datos de los pacientes no salen de este equipo.</span></p>
+          </div>
+        </main>
+
       </div>`;
   }
 
   const formIngreso = () => `
-    <h2 class="acceso-titulo">Odontograma 3D</h2>
-    <p class="acceso-nota">Ingresa con tu usuario para abrir la ficha</p>
+    <p class="acceso-rubro">Acceso al sistema</p>
+    <h2 class="acceso-titulo">Bienvenido de nuevo</h2>
+    <p class="acceso-nota">Ingresa con tu usuario para abrir la ficha del paciente.</p>
     <div class="acceso-error" id="acceso-error"></div>
-    <form id="form-ingreso" autocomplete="on">
+    <form id="form-ingreso" autocomplete="on" novalidate>
       <div class="campo">
         <label for="acceso-usuario">Usuario</label>
-        <div class="caja"><input id="acceso-usuario" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required></div>
+        <div class="caja">
+          <span class="ico-campo">${ICO.usuario}</span>
+          <input id="acceso-usuario" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="tu.usuario" required>
+        </div>
       </div>
       <div class="campo">
         <label for="acceso-clave">Clave</label>
         <div class="caja">
-          <input id="acceso-clave" name="password" type="password" autocomplete="current-password" required>
-          <button type="button" class="ver-clave" data-ver="acceso-clave">Ver</button>
+          <span class="ico-campo">${ICO.candado}</span>
+          <input id="acceso-clave" name="password" type="password" autocomplete="current-password" placeholder="••••••••" required>
+          <button type="button" class="ver-clave" data-ver="acceso-clave" data-icono="1" aria-label="Mostrar la clave" title="Mostrar la clave">${ICO.ojo}</button>
         </div>
+        <p class="aviso-mayus" id="aviso-mayus">${ICO.alerta}<span>Bloq Mayús está activado</span></p>
       </div>
-      <label class="acceso-recordar"><input type="checkbox" id="acceso-recordar"> Mantener la sesión en este equipo</label>
-      <button class="acceso-boton" type="submit" id="acceso-entrar">Entrar</button>
+      <label class="acceso-recordar"><input type="checkbox" id="acceso-recordar"> <span>Mantener la sesión en este equipo</span></label>
+      <button class="acceso-boton" type="submit" id="acceso-entrar"><span class="texto">Entrar</span></button>
     </form>`;
 
   const formPrimerUso = () => `
+    <p class="acceso-rubro">Configuración inicial</p>
     <h2 class="acceso-titulo">Primer uso</h2>
     <p class="acceso-nota">Crea la cuenta de administrador. Desde ella se dan de alta los demás usuarios de la clínica.</p>
     <div class="acceso-error" id="acceso-error"></div>
-    <form id="form-primer-uso">
+    <form id="form-primer-uso" novalidate>
       <div class="campo">
         <label for="pu-nombre">Nombre y apellidos</label>
-        <div class="caja"><input id="pu-nombre" type="text" required></div>
-      </div>
-      <div class="campo">
-        <label for="pu-usuario">Usuario</label>
-        <div class="caja"><input id="pu-usuario" type="text" autocapitalize="none" spellcheck="false" required></div>
-      </div>
-      <div class="campo">
-        <label for="pu-clave">Clave (mínimo 8, con letras y números)</label>
         <div class="caja">
-          <input id="pu-clave" type="password" required>
-          <button type="button" class="ver-clave" data-ver="pu-clave">Ver</button>
+          <span class="ico-campo">${ICO.usuario}</span>
+          <input id="pu-nombre" type="text" placeholder="Nombre del administrador" required>
         </div>
       </div>
       <div class="campo">
-        <label for="pu-clave2">Repetir la clave</label>
-        <div class="caja"><input id="pu-clave2" type="password" required></div>
+        <label for="pu-usuario">Usuario</label>
+        <div class="caja">
+          <span class="ico-campo">${ICO.usuario}</span>
+          <input id="pu-usuario" type="text" autocapitalize="none" spellcheck="false" placeholder="admin" required>
+        </div>
       </div>
-      <button class="acceso-boton" type="submit">Crear administrador</button>
+      <div class="campo">
+        <label for="pu-clave">Clave</label>
+        <div class="caja">
+          <span class="ico-campo">${ICO.candado}</span>
+          <input id="pu-clave" type="password" placeholder="Mínimo 8, con letras y números" required>
+          <button type="button" class="ver-clave" data-ver="pu-clave" data-icono="1" aria-label="Mostrar la clave" title="Mostrar la clave">${ICO.ojo}</button>
+        </div>
+        <div class="fuerza" id="pu-fuerza"><i></i><i></i><i></i><em>Seguridad de la clave</em></div>
+      </div>
+      <div class="campo">
+        <label for="pu-clave2">Repetir la clave</label>
+        <div class="caja">
+          <span class="ico-campo">${ICO.candado}</span>
+          <input id="pu-clave2" type="password" placeholder="••••••••" required>
+        </div>
+      </div>
+      <button class="acceso-boton" type="submit"><span class="texto">Crear administrador</span></button>
     </form>`;
 
   function mostrarAcceso(mensaje) {
@@ -254,23 +311,69 @@
     e.classList.toggle('visible', !!texto);
   }
 
+  function cargando(boton, activo, etiqueta) {
+    if (!boton) return;
+    boton.disabled = activo;
+    boton.classList.toggle('cargando', activo);
+    const t = boton.querySelector('.texto');
+    if (t) t.textContent = activo ? 'Comprobando…' : etiqueta;
+  }
+
+  function medirClave(c) {
+    let p = 0;
+    if (c.length >= 8) p++;
+    if (c.length >= 12) p++;
+    if (/[a-zA-Z]/.test(c) && /d/.test(c)) p++;
+    if (/[^a-zA-Z0-9]/.test(c) || /[A-Z]/.test(c)) p++;
+    return Math.min(3, p);
+  }
+
   function conectarAcceso() {
     document.querySelectorAll('.ver-clave').forEach(b => {
       b.onclick = () => {
         const campo = $(b.dataset.ver);
         const oculto = campo.type === 'password';
         campo.type = oculto ? 'text' : 'password';
-        b.textContent = oculto ? 'Ocultar' : 'Ver';
+        if (b.dataset.icono) {
+          b.innerHTML = oculto ? ICO.ojoOff : ICO.ojo;
+          b.setAttribute('aria-label', oculto ? 'Ocultar la clave' : 'Mostrar la clave');
+          b.title = b.getAttribute('aria-label');
+        } else {
+          b.textContent = oculto ? 'Ocultar' : 'Ver';
+        }
       };
     });
+
+    const aviso = $('aviso-mayus');
+    const clave = $('acceso-clave');
+    if (aviso && clave) {
+      const revisar = (e) => {
+        const activo = typeof e.getModifierState === 'function' && e.getModifierState('CapsLock');
+        aviso.classList.toggle('visible', !!activo);
+      };
+      clave.addEventListener('keyup', revisar);
+      clave.addEventListener('keydown', revisar);
+      clave.addEventListener('blur', () => aviso.classList.remove('visible'));
+    }
+
+    const barra = $('pu-fuerza');
+    const claveNueva = $('pu-clave');
+    if (barra && claveNueva) {
+      const textos = ['Seguridad de la clave', 'Clave débil', 'Clave aceptable', 'Clave segura'];
+      claveNueva.addEventListener('input', () => {
+        const n = claveNueva.value ? medirClave(claveNueva.value) : 0;
+        barra.dataset.nivel = String(n);
+        barra.querySelector('em').textContent = textos[n];
+      });
+    }
 
     const fIngreso = $('form-ingreso');
     if (fIngreso) fIngreso.onsubmit = async (e) => {
       e.preventDefault();
       const boton = $('acceso-entrar');
-      boton.disabled = true; boton.textContent = 'Comprobando…';
+      cargando(boton, true);
       const r = await intentarIngreso($('acceso-usuario').value.trim(), $('acceso-clave').value, $('acceso-recordar').checked);
-      boton.disabled = false; boton.textContent = 'Entrar';
+      cargando(boton, false, 'Entrar');
       if (!r.ok) { error(r.mensaje); $('acceso-clave').value = ''; $('acceso-clave').focus(); }
     };
 
@@ -618,7 +721,13 @@
         const campo = $(b.dataset.ver);
         const oculto = campo.type === 'password';
         campo.type = oculto ? 'text' : 'password';
-        b.textContent = oculto ? 'Ocultar' : 'Ver';
+        if (b.dataset.icono) {
+          b.innerHTML = oculto ? ICO.ojoOff : ICO.ojo;
+          b.setAttribute('aria-label', oculto ? 'Ocultar la clave' : 'Mostrar la clave');
+          b.title = b.getAttribute('aria-label');
+        } else {
+          b.textContent = oculto ? 'Ocultar' : 'Ver';
+        }
       };
     });
   }
