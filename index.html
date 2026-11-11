@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%A6%B7</text></svg>">
   <title>Odontograma 3D — Fassiara Clínica Odontológica y Estética</title>
+  <link rel="stylesheet" href="./auth.css">
   <link rel="manifest" href="./manifest.webmanifest">
   <meta name="theme-color" content="#FABAA1">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -852,6 +853,7 @@
     }
     .modal-btns button[onclick*="ghl"]:hover, .modal-btns button[onclick*="GHL"]:hover { border-color: var(--oro) !important; }
   </style>
+  <script src="./auth.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -885,6 +887,10 @@
       <button class="touch-btn" id="btn-ficha" onclick="abrirFichaModal()" title="Guardar o abrir la ficha">💾 Ficha</button>
       <button class="touch-btn" id="btn-paciente" onclick="alternarModoPaciente()" title="Vista limpia para explicar al paciente">👁️ Paciente</button>
       <button class="touch-btn" id="btn-anatomy" onclick="toggleAnatomyBar()">🦴 Anatomía</button>
+      <div id="chip-usuario" style="display:none;" title="Tu cuenta">
+        <div class="quien"><div class="nombre"></div><div class="rol"></div></div>
+        <div class="inicial"></div>
+      </div>
       <button class="touch-btn btn-pdf" onclick="openConsentModal('pdf')">📄 PDF</button>
     </div>
   </div>
@@ -1453,6 +1459,107 @@
     </div>
   </div>
 
+  <!-- Pantalla de acceso: se dibuja desde auth.js -->
+  <div id="acceso" hidden></div>
+
+  <!-- Menú de la cuenta -->
+  <div id="menu-usuario">
+    <button id="menu-clave">Cambiar mi clave</button>
+    <button id="menu-usuarios" class="solo-admin">Usuarios de la clínica</button>
+    <button id="menu-registro" class="solo-admin">Registro de ingresos</button>
+    <div class="separador"></div>
+    <button id="menu-salir" class="salir">Cerrar sesión</button>
+  </div>
+
+  <!-- Usuarios -->
+  <div id="usuarios-modal" class="modal-overlay">
+    <div class="modal-card panel-ancho">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:17px;">Usuarios de la clínica</h3>
+        <button id="usuarios-cerrar" style="background:none; border:none; font-size:18px; cursor:pointer; color:var(--text-muted);">✕</button>
+      </div>
+      <p style="font-size:11.5px; color:var(--text-muted); margin:4px 0 12px;">Solo el administrador puede dar de alta, desactivar o reiniciar la clave de un usuario.</p>
+      <div id="usuarios-tabla" style="max-height:44vh; overflow-y:auto;"></div>
+      <div class="modal-btns" style="margin-top:12px;">
+        <button class="touch-btn btn-pdf" id="usuarios-nuevo">＋ Nuevo usuario</button>
+        <button class="touch-btn" id="usuarios-exportar">Exportar usuarios</button>
+        <label class="touch-btn" style="cursor:pointer;">Importar
+          <input type="file" id="usuarios-importar" accept="application/json,.json" style="display:none;">
+        </label>
+      </div>
+      <p style="font-size:10.5px; color:var(--text-muted); margin:10px 0 0;">Exportar e importar sirve para copiar las mismas cuentas a las otras tablets del consultorio.</p>
+    </div>
+  </div>
+
+  <!-- Alta de usuario -->
+  <div id="alta-modal" class="modal-overlay">
+    <div class="modal-card" style="max-width:520px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:17px;">Nuevo usuario</h3>
+        <button id="alta-cerrar" style="background:none; border:none; font-size:18px; cursor:pointer; color:var(--text-muted);">✕</button>
+      </div>
+      <div class="acceso-error" id="alta-error" style="margin-top:10px;"></div>
+      <form id="form-alta">
+        <div class="rejilla-form" style="margin-top:8px;">
+          <div class="campo ancho-total"><label for="alta-nombre">Nombre y apellidos</label><div class="caja"><input id="alta-nombre" type="text" required></div></div>
+          <div class="campo"><label for="alta-dni">DNI</label><div class="caja"><input id="alta-dni" type="text" inputmode="numeric"></div></div>
+          <div class="campo"><label for="alta-telefono">Teléfono</label><div class="caja"><input id="alta-telefono" type="tel"></div></div>
+          <div class="campo ancho-total"><label for="alta-correo">Correo</label><div class="caja"><input id="alta-correo" type="email"></div></div>
+          <div class="campo"><label for="alta-rol">Rol</label><div class="caja">
+            <select id="alta-rol" required>
+              <option value="doctor">Doctor</option>
+              <option value="recepcion">Recepción</option>
+              <option value="administrador">Administrador</option>
+            </select></div></div>
+          <div class="campo"><label for="alta-usuario">Usuario para entrar</label><div class="caja"><input id="alta-usuario" type="text" autocapitalize="none" spellcheck="false" required></div></div>
+          <div class="rejilla-form ancho-total" id="alta-campos-doctor" style="gap:10px;">
+            <div class="campo"><label for="alta-cop">N.° de COP</label><div class="caja"><input id="alta-cop" type="text"></div></div>
+            <div class="campo"><label for="alta-especialidad">Especialidad</label><div class="caja"><input id="alta-especialidad" type="text"></div></div>
+          </div>
+          <div class="campo ancho-total"><label for="alta-clave">Clave inicial (mínimo 8, con letras y números)</label>
+            <div class="caja"><input id="alta-clave" type="password" required><button type="button" class="ver-clave" data-ver="alta-clave">Ver</button></div>
+          </div>
+        </div>
+        <p style="font-size:10.5px; color:var(--text-muted); margin:2px 0 10px;">Al entrar por primera vez, la persona deberá cambiar esta clave.</p>
+        <button class="acceso-boton" type="submit">Crear usuario</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Cambio de clave propia -->
+  <div id="clave-modal" class="modal-overlay">
+    <div class="modal-card" style="max-width:420px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:17px;">Cambiar mi clave</h3>
+        <button id="clave-cerrar" style="background:none; border:none; font-size:18px; cursor:pointer; color:var(--text-muted);">✕</button>
+      </div>
+      <p id="clave-obligatorio" style="display:none; font-size:11.5px; color:#9C5540; margin:6px 0 0;">Tu clave fue creada por el administrador: por seguridad, cámbiala ahora.</p>
+      <div class="acceso-error" id="clave-error" style="margin-top:10px;"></div>
+      <form id="form-clave" style="margin-top:8px;">
+        <div class="campo"><label for="clave-actual">Clave actual</label><div class="caja"><input id="clave-actual" type="password" required></div></div>
+        <div class="campo"><label for="clave-nueva">Clave nueva</label><div class="caja"><input id="clave-nueva" type="password" required><button type="button" class="ver-clave" data-ver="clave-nueva">Ver</button></div></div>
+        <div class="campo"><label for="clave-nueva2">Repetir la clave nueva</label><div class="caja"><input id="clave-nueva2" type="password" required></div></div>
+        <button class="acceso-boton" type="submit">Guardar</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Registro de ingresos -->
+  <div id="registro-modal" class="modal-overlay">
+    <div class="modal-card panel-ancho">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:17px;">Registro de ingresos</h3>
+        <button id="registro-cerrar" style="background:none; border:none; font-size:18px; cursor:pointer; color:var(--text-muted);">✕</button>
+      </div>
+      <p style="font-size:11.5px; color:var(--text-muted); margin:4px 0 10px;">Ingresos, salidas, intentos fallidos, bloqueos y cambios de cuenta de este equipo.</p>
+      <div id="registro-tabla" style="max-height:46vh; overflow-y:auto;"></div>
+      <div class="modal-btns" style="margin-top:12px;">
+        <button class="touch-btn" id="registro-exportar">Exportar a CSV</button>
+        <button class="touch-btn active" onclick="document.getElementById('registro-modal').style.display='none'">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="anat-tooltip"></div>
   <div id="tooth-card">
     <h4 id="card-fdi">—</h4>
@@ -1572,6 +1679,7 @@
     })();
 
     window.abrirPrecios = function() {
+      if (typeof puede === "function" && !puede("precios")) { avisoFicha("Solo el administrador puede editar los precios"); return; }
       const cont = document.getElementById('lista-precios');
       cont.innerHTML = GRUPOS_PRECIOS.map(([grupo, claves]) => `
         <div class="grupo-precio">
@@ -4476,7 +4584,8 @@
     initSignaturePad();
 
     window.clearSignature = function() { sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height); hasSignature = false; };
-    window.openConsentModal = function(type) { consentActionType = type; document.getElementById('consent-modal').style.display = 'flex'; };
+    window.openConsentModal = function(type) {
+      if (typeof puede === "function" && !puede("documentos")) { avisoFicha("Tu rol no genera la historia clínica"); return; } consentActionType = type; document.getElementById('consent-modal').style.display = 'flex'; };
     window.closeConsentModal = function() { document.getElementById('consent-modal').style.display = 'none'; };
 
     let tipoRegistroLab = 'impresion';
@@ -4767,6 +4876,7 @@
 
     // Documento de presupuesto, separado de la historia clínica
     window.generarPresupuestoPDF = function() {
+      if (typeof puede === "function" && !puede("presupuesto")) return;
       const { grupos, total } = presupuestoPorFases();
       if (!grupos.length) { alert("Todavía no hay tratamientos marcados para presupuestar."); return; }
       const pName = (document.getElementById("pdf-patient-name").value || "").trim() || "Paciente";
@@ -4834,6 +4944,7 @@
       avisoFicha("Presupuesto descargado");
     };
     function buildClinicalPDF(pName, pId, dName, sigImg) {
+      if (typeof puede === "function" && !puede("documentos")) return null;
       const fotos = capturasArcada();
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('p', 'mm', 'a4');

@@ -191,6 +191,23 @@ La interfaz usa los colores tomados del propio logo (muestreados del archivo): *
 - **Documentos:** la Historia Clínica, el presupuesto, el periodontograma, los consentimientos y la orden de laboratorio llevan la misma identidad: banda terracota, hilo dorado, logo de la clínica y tablas en la paleta.
 - **Color clínico intacto:** el código de estado (verde/rojo/amarillo/azul/gris/morado), las marcas sobre el modelo y los colores de dientes y encía no se tocaron: ahí el color es información, no decoración.
 
+
+## Acceso y usuarios
+
+El visor se abre tras una pantalla de acceso con la identidad de la clínica (`auth.css` y `auth.js`, aparte del `index.html`).
+
+- **Primer uso:** si el equipo no tiene cuentas, la pantalla pide crear la del **administrador**. No hay claves por defecto en el código.
+- **Tres roles.** *Administrador*: todo lo clínico más usuarios, precios y registro de ingresos. *Doctor*: trabajo clínico completo, documentos y ficha. *Recepción*: consulta el caso, ficha, modo paciente y presupuesto; no marca ni genera la historia clínica.
+- **Alta de usuarios (solo administrador):** nombre, DNI, teléfono, correo, rol, usuario, y COP y especialidad para los doctores. La clave inicial la pone el administrador y el usuario **debe cambiarla al entrar**.
+- **Cada usuario cambia su clave** desde el menú de su cuenta (pide la actual; mínimo 8 caracteres con letras y números).
+- **Bloqueo por intentos:** a los 5 fallos la cuenta queda bloqueada 5 minutos, y el bloqueo se duplica si vuelve a ocurrir. Un ingreso correcto lo reinicia.
+- **Registro de ingresos:** fecha, usuario, evento (ingreso, salida, intento fallido, bloqueo, alta, baja, cambio de clave) y detalle. Exportable a CSV. Guarda los últimos 500 movimientos.
+- **Sesión:** se cierra sola tras 30 minutos de inactividad; con “mantener la sesión” dura 12 horas en ese equipo.
+- **Claves:** nunca se guardan en claro. Se derivan con PBKDF2-SHA256, 150.000 iteraciones y sal propia por usuario (Web Crypto).
+- **Entre equipos:** el administrador exporta e importa la lista de usuarios para replicar las cuentas en las otras tablets.
+
+⚠️ **Alcance real:** esto es control de uso del consultorio, no seguridad de servidor. Al ser un sitio estático, los usuarios viven en el navegador de cada equipo y alguien con conocimientos técnicos podría sortearlo. Para protección real hay que servir el sitio detrás de una autenticación de verdad (Cloudflare Access, Netlify o un backend propio).
+
 ## Deploy
 
 ### Opción A — GitHub Pages (recomendado, workflow ya incluido)
