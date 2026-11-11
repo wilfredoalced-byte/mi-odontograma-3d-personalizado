@@ -194,6 +194,7 @@
       <div class="acceso-escena">
 
         <aside class="acceso-marca-panel">
+          <div class="escena3d" id="escena3d"></div>
           <span class="marca-filete">${ARCADA}</span>
           <div class="marca-cabecera">
             <img class="acceso-logo" src="./logo-fassiara.png" alt="Fassiara">
@@ -297,15 +298,170 @@
     cont.innerHTML = pantallaAcceso();
     cont.hidden = false;
     conectarAcceso();
+    iniciarEscena();
     if (mensaje) error(mensaje);
     const primero = cont.querySelector('input');
     if (primero) setTimeout(() => primero.focus(), 120);
   }
 
   function ocultarAcceso() {
+    detenerEscena();
     const cont = $('acceso');
     cont.hidden = true;
     cont.innerHTML = '';
+  }
+
+  // ------------------------------------------------------- escena 3D del panel
+  let motor = null, modeloCache = null;
+
+  const hayWebGL = () => {
+    try {
+      const c = document.createElement('canvas');
+      return !!(window.WebGLRenderingContext && (c.getContext('webgl') || c.getContext('experimental-webgl')));
+    } catch (e) { return false; }
+  };
+
+  const esperarTres = () => new Promise((listo, falla) => {
+    const limite = Date.now() + 12000;
+    (function mirar() {
+      if (window.THREE && THREE.GLTFLoader && THREE.DRACOLoader) return listo();
+      if (Date.now() > limite) return falla(new Error('three tardó demasiado'));
+      setTimeout(mirar, 160);
+    })();
+  });
+
+  function cargarModelo() {
+    if (modeloCache) return Promise.resolve(modeloCache);
+    return new Promise((listo, falla) => {
+      const cargador = new THREE.GLTFLoader();
+      const draco = new THREE.DRACOLoader();
+      draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+      cargador.setDRACOLoader(draco);
+      cargador.load('./arcada_superior_lite.glb', g => { modeloCache = g.scene; listo(modeloCache); }, undefined, falla);
+    });
+  }
+
+  // La encía y los dientes se distinguen por el color que trae cada malla
+  function esEncia(malla) {
+    const col = malla.geometry.attributes.color;
+    if (!col) return false;
+    let r = 0, v = 0;
+    const paso = Math.max(1, Math.floor(col.count / 400));
+    let n = 0;
+    for (let i = 0; i < col.count; i += paso) { r += col.getX(i); v += col.getY(i); n++; }
+    return n > 0 && (r / n) - (v / n) > 0.18;
+  }
+
+  async function iniciarEscena() {
+    const hueco = $('escena3d');
+    if (!hueco || motor) return;
+    if (!window.matchMedia('(min-width: 1000px)').matches) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (!hayWebGL()) return;
+
+    try {
+      await esperarTres();
+      const raiz = await cargarModelo();
+      if (!$('escena3d')) return;                       // ya entró mientras cargaba
+
+      const ancho = hueco.clientWidth, alto = hueco.clientHeight;
+      if (ancho < 320 || alto < 320) return;
+
+      const render = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' });
+      render.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+      render.setSize(ancho, alto);
+      render.outputEncoding = THREE.sRGBEncoding;
+      render.toneMapping = THREE.ACESFilmicToneMapping;
+      render.toneMappingExposure = 0.88;
+      hueco.appendChild(render.domElement);
+
+      const escena = new THREE.Scene();
+      const camara = new THREE.PerspectiveCamera(30, ancho / alto, 0.1, 100);
+
+      const pieza = raiz.clone(true);
+      const esmalte = new THREE.MeshStandardMaterial({ color: 0xF1E3D1, roughness: 0.34, metalness: 0.03, side: THREE.DoubleSide });
+      const encia = new THREE.MeshStandardMaterial({ color: 0xD08A6E, roughness: 0.8, metalness: 0, side: THREE.DoubleSide });
+      pieza.traverse(o => {
+        if (!o.isMesh) return;
+        o.material = esEncia(o) ? encia : esmalte;
+        o.castShadow = false;
+      });
+
+      // Centrar la arcada y calcular la distancia que la deja entera en cuadro
+      const caja = new THREE.Box3().setFromObject(pieza);
+      const centro = caja.getCenter(new THREE.Vector3());
+      const esfera = caja.getBoundingSphere(new THREE.Sphere());
+      const soporte = new THREE.Group();
+      pieza.position.sub(centro);
+      soporte.add(pieza);
+      escena.add(soporte);
+      const mediaFov = THREE.MathUtils.degToRad(camara.fov) / 2;
+      const distancia = esfera.radius / Math.min(1, camara.aspect) / Math.tan(mediaFov) * 1.06;
+
+      // Tres luces: ambiente cálido, luz principal y contraluz
+      escena.add(new THREE.HemisphereLight(0xFFF6EE, 0xB9876E, 0.48));
+      const clave = new THREE.DirectionalLight(0xFFFFFF, 0.72);
+      clave.position.set(1.5, -2.6, 2.4).multiplyScalar(distancia / 3); escena.add(clave);
+      const contra = new THREE.DirectionalLight(0xFFD9BE, 0.42);
+      contra.position.set(-2.0, 1.6, -1.8).multiplyScalar(distancia / 3); escena.add(contra);
+
+      const altura = -distancia * 0.36, fondo = distancia * 0.9;
+      camara.position.set(0, altura, fondo);
+      camara.lookAt(0, 0, 0);
+
+      let cuadro = 0, inicio = performance.now(), ultimo = 0, px = 0, py = 0, dx = 0, dy = 0;
+      const seguir = (e) => {
+        const r = hueco.getBoundingClientRect();
+        px = ((e.clientX - r.left) / r.width - 0.5) * 2;
+        py = ((e.clientY - r.top) / r.height - 0.5) * 2;
+      };
+      window.addEventListener('pointermove', seguir, { passive: true });
+
+      const pintar = (ahora) => {
+        cuadro = requestAnimationFrame(pintar);
+        if (document.hidden || ahora - ultimo < 22) return;   // tope de ~45 cuadros
+        ultimo = ahora;
+        const t = (ahora - inicio) / 1000;
+        soporte.rotation.y = Math.sin(t * 0.15) * 0.3;
+        soporte.rotation.x = Math.sin(t * 0.11) * 0.05;
+        dx += (px * distancia * 0.05 - dx) * 0.045;
+        dy += (py * distancia * 0.035 - dy) * 0.045;
+        camara.position.x = dx;
+        camara.position.y = altura - dy;
+        camara.lookAt(0, 0, 0);
+        render.render(escena, camara);
+      };
+      cuadro = requestAnimationFrame(pintar);
+
+      const medir = () => {
+        if (!hueco.isConnected) return;
+        const a = hueco.clientWidth, b = hueco.clientHeight;
+        if (!a || !b) return;
+        camara.aspect = a / b; camara.updateProjectionMatrix(); render.setSize(a, b);
+        const d2 = esfera.radius / Math.min(1, camara.aspect) / Math.tan(mediaFov) * 1.06;
+        camara.position.z = d2 * 0.85;
+      };
+      window.addEventListener('resize', medir);
+
+      motor = { cuadro, render, escena, seguir, medir, hueco };
+      requestAnimationFrame(() => hueco.classList.add('lista'));
+    } catch (e) {
+      /* se queda el dibujo de la arcada */
+    }
+  }
+
+  function detenerEscena() {
+    if (!motor) return;
+    cancelAnimationFrame(motor.cuadro);
+    window.removeEventListener('pointermove', motor.seguir);
+    window.removeEventListener('resize', motor.medir);
+    const vistos = new Set();
+    motor.escena.traverse(o => {
+      if (o.isMesh && o.material && !vistos.has(o.material)) { vistos.add(o.material); o.material.dispose(); }
+    });
+    motor.render.dispose();
+    if (motor.render.domElement.parentNode) motor.render.domElement.parentNode.removeChild(motor.render.domElement);
+    motor = null;
   }
 
   function error(texto) {

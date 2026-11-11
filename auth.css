@@ -15,6 +15,9 @@
   --ac-tenue: #8A7A73;
   --ac-linea: #F0DDD3;
   --ac-papel: #FDFBFA;
+  --ac-champan: #EFE0CC;
+  --ac-marfil: #FBF8F4;
+  --ac-marron: #5C3A2E;
 }
 
 #acceso {
@@ -50,11 +53,30 @@
 /* Trama diagonal casi imperceptible: quita la sensación de color plano */
 .acceso-marca-panel {
   background-image:
-    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.13) 0 1px, rgba(255, 255, 255, 0) 1px 13px),
-    radial-gradient(120% 90% at 8% 0%, #FFF4EE 0%, rgba(255, 244, 238, 0) 58%),
-    radial-gradient(90% 80% at 100% 100%, #F6B396 0%, rgba(246, 179, 150, 0) 62%),
-    linear-gradient(158deg, #FDE7DC 0%, #FACFB9 52%, #F6BCA0 100%);
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0 1px, rgba(255, 255, 255, 0) 1px 14px),
+    radial-gradient(90% 70% at 12% 2%, #FFFBF7 0%, rgba(255, 251, 247, 0) 58%),
+    radial-gradient(70% 60% at 78% 34%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 64%),
+    radial-gradient(95% 80% at 100% 100%, #F3AD8E 0%, rgba(243, 173, 142, 0) 64%),
+    linear-gradient(156deg, #FBF2E6 0%, #F6DFCB 34%, #F9CDB6 68%, #F5B99C 100%);
 }
+
+/* Escena 3D: la arcada real girando despacio, a la derecha del texto */
+.acceso-marca-panel .escena3d {
+  position: absolute;
+  left: 41%; right: 17px; top: 56px; bottom: 56px;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+  -webkit-mask-image: radial-gradient(62% 56% at 52% 48%, #000 34%, rgba(0, 0, 0, 0) 94%);
+  mask-image: radial-gradient(62% 56% at 52% 48%, #000 34%, rgba(0, 0, 0, 0) 94%);
+}
+.acceso-marca-panel .escena3d.lista { opacity: 0.92; }
+.acceso-marca-panel .escena3d canvas { position: absolute; inset: 0; }
+/* Cuando la escena entra, el dibujo se retira sin salto */
+.escena3d.lista ~ .marca-filete .arcada-deco { opacity: 0; transition: opacity 1s ease; }
 
 /* Arcada dental de adorno */
 .acceso-marca-panel .arcada-deco {
@@ -131,19 +153,19 @@
 .marca-centro { max-width: 420px; padding: 24px 0; }
 .marca-rubro {
   display: inline-flex; align-items: center; gap: 8px;
-  font-size: 9.5px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  font-size: 9px; font-weight: 700; letter-spacing: 2.4px; text-transform: uppercase;
   color: var(--ac-dorado-texto);
   margin: 0 0 14px;
 }
 .marca-rubro::before { content: ""; width: 26px; height: 1px; background: var(--ac-dorado); }
 .marca-lema {
   font-family: var(--fuente-titulo, Georgia, serif);
-  font-size: clamp(32px, 3.4vw, 46px);
+  font-size: clamp(34px, 3.7vw, 50px);
   font-weight: 600;
-  line-height: 1.08;
-  letter-spacing: 0.2px;
-  color: #6F3A28;
-  margin: 0 0 14px;
+  line-height: 1.04;
+  letter-spacing: -0.6px;
+  color: var(--ac-marron);
+  margin: 0 0 16px;
 }
 .marca-texto {
   font-size: 13.5px;
@@ -198,7 +220,10 @@
   background: #FFFFFF;
   border: 1px solid #F3E6DE;
   border-radius: 20px;
-  box-shadow: 0 1px 2px rgba(58, 46, 42, 0.04), 0 20px 48px -18px rgba(124, 70, 50, 0.22);
+  box-shadow:
+    0 1px 2px rgba(58, 46, 42, 0.05),
+    0 8px 20px -10px rgba(124, 70, 50, 0.14),
+    0 32px 64px -28px rgba(124, 70, 50, 0.3);
   animation: acceso-entra 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 /* Canto dorado superior, del ancho justo */
@@ -209,20 +234,45 @@
   background: linear-gradient(90deg, rgba(210, 158, 47, 0), #D29E2F 50%, rgba(210, 158, 47, 0));
 }
 @keyframes acceso-entra { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+@keyframes sube { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
+
+.acceso-tarjeta > *:not(.acceso-error),
+.acceso-tarjeta form > * {
+  animation: sube 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.acceso-tarjeta > *:nth-child(1) { animation-delay: 0.10s; }
+.acceso-tarjeta > *:nth-child(2) { animation-delay: 0.16s; }
+.acceso-tarjeta > *:nth-child(3) { animation-delay: 0.22s; }
+.acceso-tarjeta > *:nth-child(5) { animation-delay: 0.26s; }
+.acceso-tarjeta > *:nth-child(6) { animation-delay: 0.52s; }
+.acceso-tarjeta form > *:nth-child(1) { animation-delay: 0.30s; }
+.acceso-tarjeta form > *:nth-child(2) { animation-delay: 0.36s; }
+.acceso-tarjeta form > *:nth-child(3) { animation-delay: 0.42s; }
+.acceso-tarjeta form > *:nth-child(4) { animation-delay: 0.46s; }
+.acceso-tarjeta form > *:nth-child(5) { animation-delay: 0.50s; }
+
+.marca-cabecera, .marca-centro, .marca-pie { animation: sube 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.marca-cabecera { animation-delay: 0.06s; }
+.marca-centro { animation-delay: 0.14s; }
+.marca-pie { animation-delay: 0.3s; }
+.marca-lista li { animation: sube 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.marca-lista li:nth-child(1) { animation-delay: 0.26s; }
+.marca-lista li:nth-child(2) { animation-delay: 0.32s; }
+.marca-lista li:nth-child(3) { animation-delay: 0.38s; }
 
 .acceso-rubro {
-  font-size: 9.5px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  font-size: 9px; font-weight: 700; letter-spacing: 2.4px; text-transform: uppercase;
   color: var(--ac-dorado-texto);
   margin: 0 0 8px;
 }
 .acceso-titulo {
   font-family: var(--fuente-titulo, Georgia, serif);
-  font-size: 31px;
+  font-size: 33px;
   font-weight: 600;
-  line-height: 1.12;
-  letter-spacing: 0.2px;
+  line-height: 1.1;
+  letter-spacing: -0.4px;
   color: var(--ac-carbon);
-  margin: 0 0 7px;
+  margin: 0 0 8px;
 }
 .acceso-nota {
   font-size: 12.5px;
@@ -265,7 +315,8 @@
   background: var(--ac-papel);
   border: 1px solid #EDE0D8;
   border-radius: 11px;
-  transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+  box-shadow: inset 0 1px 2px rgba(124, 70, 50, 0.045);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease, transform 0.16s ease;
 }
 .campo .ico-campo ~ input { padding-left: 40px; }
 .campo input::placeholder { color: #C9B8B0; }
@@ -275,7 +326,8 @@
   outline: none;
   background: #FFFFFF;
   border-color: var(--ac-dorado);
-  box-shadow: 0 0 0 3.5px rgba(210, 158, 47, 0.15);
+  box-shadow: 0 0 0 3.5px rgba(210, 158, 47, 0.15), 0 4px 12px -6px rgba(124, 70, 50, 0.2);
+  transform: translateY(-1px);
 }
 .campo .ver-clave {
   position: absolute; right: 7px;
@@ -340,13 +392,23 @@
   font-family: inherit;
   letter-spacing: 0.3px;
   color: #FFFFFF;
-  background: linear-gradient(180deg, #A95E47 0%, #9C5540 100%);
-  border: 1px solid #8E4C38;
+  background: linear-gradient(180deg, #9E5742 0%, #8B4A37 100%);
+  border: 1px solid #7E4231;
   border-radius: 11px;
   cursor: pointer;
-  box-shadow: 0 7px 18px rgba(156, 85, 64, 0.26);
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(124, 70, 50, 0.18), 0 10px 24px -8px rgba(124, 70, 50, 0.4);
   transition: transform 0.12s ease, box-shadow 0.18s ease, filter 0.15s ease;
 }
+.acceso-boton .texto { position: relative; z-index: 1; }
+.acceso-boton::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(105deg, rgba(255, 255, 255, 0) 38%, rgba(255, 245, 230, 0.26) 50%, rgba(255, 255, 255, 0) 62%);
+  transform: translateX(-120%);
+  transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.acceso-boton:hover::after { transform: translateX(120%); }
 .acceso-boton:hover { filter: brightness(1.06); box-shadow: 0 9px 22px rgba(156, 85, 64, 0.3); }
 .acceso-boton:active { transform: translateY(1px); box-shadow: 0 4px 12px rgba(156, 85, 64, 0.24); }
 .acceso-boton:focus-visible { outline: 2px solid var(--ac-dorado); outline-offset: 3px; }
@@ -409,7 +471,8 @@
     border-bottom: 1px solid rgba(210, 158, 47, 0.3);
   }
   .acceso-marca-panel::before, .acceso-marca-panel::after { display: none; }
-  .arcada-deco, .marca-filete { display: none; }
+  .acceso-marca-panel .arcada-deco,
+  .acceso-marca-panel .escena3d { display: none; }
   .marca-centro, .marca-pie { display: none; }
   .acceso-logo { width: 42px; height: 42px; }
   .acceso-marca { font-size: 19px; letter-spacing: 6px; text-indent: 6px; }
@@ -424,7 +487,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .acceso-tarjeta, .acceso-error.visible { animation: none; }
+  .acceso-tarjeta, .acceso-error.visible,
+  .acceso-tarjeta > *, .acceso-tarjeta form > *,
+  .marca-cabecera, .marca-centro, .marca-pie, .marca-lista li { animation: none; }
+  .acceso-boton::after { display: none; }
   .acceso-boton.cargando::before { animation-duration: 2s; }
 }
 
