@@ -87,6 +87,7 @@
       top: 12px;
       left: 16px;
       right: 16px;
+      flex-wrap: nowrap;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -100,6 +101,8 @@
     }
     .top-group { display: flex; align-items: center; gap: 8px; }
     #clinic-brand-label {
+      min-width: 0;
+      flex-shrink: 1;
       font-family: Georgia, 'Times New Roman', serif;
       font-weight: 700;
       font-size: 16px;
@@ -265,7 +268,7 @@
     /* Barra de Filtros de Capas 3D */
     #layer-floating-bar {
       position: absolute;
-      top: 70px;
+      top: calc(var(--alto-barra, 58px) + 24px);
       left: 16px;
       display: flex;
       gap: 6px;
@@ -295,7 +298,9 @@
     /* Riel Lateral Derecho de Especialidades */
     #specialty-rail {
       position: absolute;
-      top: 70px;
+      top: calc(var(--alto-barra, 58px) + 24px);
+      max-height: calc(100vh - var(--alto-barra, 58px) - 48px);
+      overflow-y: auto;
       right: 16px;
       display: flex;
       flex-direction: column;

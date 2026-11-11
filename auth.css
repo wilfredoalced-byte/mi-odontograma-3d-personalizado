@@ -25,7 +25,7 @@
   inset: 0;
   z-index: 500;
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.26fr) minmax(0, 1fr);
   background: #FFFFFF;
   font-family: var(--fuente-datos, system-ui, sans-serif);
   color: var(--ac-carbon);
@@ -42,7 +42,7 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 44px 48px 36px;
+  padding: 44px 46px 36px 74px;
   color: #5E3A2C;
   background:
     radial-gradient(120% 90% at 8% 0%, #FFF4EE 0%, rgba(255, 244, 238, 0) 58%),
@@ -60,10 +60,87 @@
     linear-gradient(156deg, #FBF2E6 0%, #F6DFCB 34%, #F9CDB6 68%, #F5B99C 100%);
 }
 
+/* Foco de luz: el modelo se apoya en una zona clara, no flota en el vacío */
+.acceso-marca-panel .foco {
+  position: absolute;
+  left: 40%; top: 14%;
+  width: 55%; height: 62%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(255, 253, 250, 0.9), rgba(255, 253, 250, 0));
+  filter: blur(6px);
+  z-index: 0;
+  pointer-events: none;
+}
+/* Sombra de apoyo bajo la arcada */
+.acceso-marca-panel .reflejo {
+  position: absolute;
+  left: 52%; bottom: 20%;
+  width: 28%; height: 40px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(134, 74, 53, 0.3), rgba(134, 74, 53, 0));
+  filter: blur(9px);
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Fichas clínicas flotando sobre la escena: enseñan de qué va el programa */
+.acceso-marca-panel .ficha-flotante {
+  position: absolute;
+  z-index: 2;
+  background: rgba(255, 255, 255, 0.84);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(210, 158, 47, 0.4);
+  border-radius: 14px;
+  padding: 11px 14px;
+  box-shadow: 0 2px 6px rgba(124, 70, 50, 0.08), 0 18px 34px -16px rgba(124, 70, 50, 0.5);
+  animation: sube 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.acceso-marca-panel .ficha-a {
+  top: 21%; right: 5%;
+  display: flex; align-items: center; gap: 11px;
+  animation-delay: 0.85s;
+}
+.ficha-a .fdi {
+  width: 34px; height: 34px; flex: none;
+  border-radius: 9px;
+  background: var(--ac-terracota); color: #FFF;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; letter-spacing: 0.3px;
+}
+.ficha-a strong { display: block; font-size: 12px; font-weight: 600; color: #4A332A; }
+.ficha-a em {
+  display: flex; align-items: center; gap: 6px;
+  font-style: normal; font-size: 10.5px; color: #8A7A73; margin-top: 3px;
+}
+.acceso-marca-panel .ficha-b { bottom: 17%; right: 30%; animation-delay: 1.05s; }
+.ficha-b .titulillo {
+  margin: 0 0 8px;
+  font-size: 8.5px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase;
+  color: var(--ac-dorado-texto);
+}
+.ficha-b .leyenda { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ficha-b .leyenda li { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #6B4132; }
+.punto { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.punto.rojo { background: #C0392B; }
+.punto.verde { background: #2E7D52; }
+.punto.azul { background: #2E6DA4; }
+
+/* Cinta vertical en el canto, como en una carpeta clínica */
+.acceso-marca-panel .cinta {
+  position: absolute;
+  left: 32px; bottom: 112px;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 8.5px; letter-spacing: 2.8px; text-transform: uppercase;
+  color: rgba(112, 70, 55, 0.4);
+  z-index: 1;
+}
+
 /* Escena 3D: la arcada real girando despacio, a la derecha del texto */
 .acceso-marca-panel .escena3d {
   position: absolute;
-  left: 41%; right: 17px; top: 56px; bottom: 56px;
+  left: 40%; right: 12px; top: 15%; bottom: 17%;
   z-index: 0;
   overflow: hidden;
   border-radius: 4px;
@@ -204,6 +281,7 @@
 .acceso-panel-form {
   position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 40px 36px;
@@ -212,8 +290,37 @@
     radial-gradient(60% 50% at 0% 100%, #FFF7F2 0%, rgba(255, 247, 242, 0) 70%),
     #FFFCFA;
 }
+/* Trama de puntos muy tenue: textura sin ruido visual */
+.acceso-panel-form::before {
+  content: "";
+  position: absolute; inset: 0;
+  background-image: radial-gradient(rgba(156, 85, 64, 0.06) 1px, transparent 1px);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(72% 62% at 50% 50%, #000 10%, rgba(0, 0, 0, 0) 100%);
+  mask-image: radial-gradient(72% 62% at 50% 50%, #000 10%, rgba(0, 0, 0, 0) 100%);
+  pointer-events: none;
+}
+.forma-cabecera {
+  position: absolute; top: 34px; right: 40px;
+  display: flex; align-items: center; gap: 9px;
+  font-size: 9px; font-weight: 600; letter-spacing: 1.8px; text-transform: uppercase;
+  color: #C0B2AA;
+  margin: 0;
+}
+.forma-cabecera i { width: 3px; height: 3px; border-radius: 50%; background: var(--ac-dorado-suave); }
+.forma-pie {
+  position: relative; z-index: 1;
+  max-width: 360px;
+  margin: 20px auto 0;
+  text-align: center;
+  font-size: 10.5px; line-height: 1.65;
+  color: #B3A49C;
+  animation: sube 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.6s both;
+}
+
 .acceso-tarjeta {
   position: relative;
+  z-index: 1;
   width: 100%;
   max-width: 400px;
   padding: 38px 36px 30px;
@@ -472,7 +579,13 @@
   }
   .acceso-marca-panel::before, .acceso-marca-panel::after { display: none; }
   .acceso-marca-panel .arcada-deco,
-  .acceso-marca-panel .escena3d { display: none; }
+  .acceso-marca-panel .escena3d,
+  .acceso-marca-panel .foco,
+  .acceso-marca-panel .reflejo,
+  .acceso-marca-panel .cinta,
+  .acceso-marca-panel .ficha-flotante { display: none; }
+  .forma-cabecera { display: none; }
+  .acceso-marca-panel { padding: 18px 20px; }
   .marca-centro, .marca-pie { display: none; }
   .acceso-logo { width: 42px; height: 42px; }
   .acceso-marca { font-size: 19px; letter-spacing: 6px; text-indent: 6px; }
@@ -489,7 +602,8 @@
 @media (prefers-reduced-motion: reduce) {
   .acceso-tarjeta, .acceso-error.visible,
   .acceso-tarjeta > *, .acceso-tarjeta form > *,
-  .marca-cabecera, .marca-centro, .marca-pie, .marca-lista li { animation: none; }
+  .marca-cabecera, .marca-centro, .marca-pie, .marca-lista li,
+  .ficha-flotante, .forma-pie { animation: none; }
   .acceso-boton::after { display: none; }
   .acceso-boton.cargando::before { animation-duration: 2s; }
 }
@@ -515,7 +629,10 @@
   display: flex; align-items: center; justify-content: center;
   font-size: 12.5px; font-weight: 700;
 }
-@media (max-width: 980px) { #chip-usuario .quien { display: none; } }
+@media (max-width: 1600px) {
+  #chip-usuario { padding: 5px; }
+  #chip-usuario .quien { display: none; }
+}
 
 #menu-usuario {
   position: absolute; top: 64px; right: 16px; z-index: 180;
@@ -538,6 +655,10 @@
 #menu-usuario button:hover { background: #FFF4EE; }
 #menu-usuario .separador { height: 1px; background: #F0DDD3; margin: 5px 2px; }
 #menu-usuario .salir { color: #9C5540; font-weight: 600; }
+
+/* Ningún botón de la barra parte su texto en dos líneas: la barra crecía
+   y tapaba los rieles en pantallas al 125 %. */
+#top-bar .touch-btn, #top-bar #clinic-brand-label { white-space: nowrap; }
 
 /* ---- Ventanas de usuarios, clave y registro ---- */
 .panel-ancho { max-width: 680px !important; }
