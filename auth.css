@@ -47,6 +47,41 @@
     linear-gradient(158deg, #FDE7DC 0%, #FACFB9 52%, #F6BCA0 100%);
   border-right: 1px solid rgba(210, 158, 47, 0.28);
 }
+/* Trama diagonal casi imperceptible: quita la sensación de color plano */
+.acceso-marca-panel {
+  background-image:
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.13) 0 1px, rgba(255, 255, 255, 0) 1px 13px),
+    radial-gradient(120% 90% at 8% 0%, #FFF4EE 0%, rgba(255, 244, 238, 0) 58%),
+    radial-gradient(90% 80% at 100% 100%, #F6B396 0%, rgba(246, 179, 150, 0) 62%),
+    linear-gradient(158deg, #FDE7DC 0%, #FACFB9 52%, #F6BCA0 100%);
+}
+
+/* Arcada dental de adorno */
+.acceso-marca-panel .arcada-deco {
+  position: absolute;
+  right: -86px;
+  bottom: -64px;
+  width: 470px;
+  height: auto;
+  z-index: 0;
+  opacity: 0.5;
+  pointer-events: none;
+}
+.arcada-deco .encia { stroke: #8E4A35; stroke-width: 1.6; opacity: 0.3; }
+.arcada-deco .piezas rect { stroke: #8E4A35; stroke-width: 1.7; opacity: 0.38; }
+.arcada-deco .surcos path { stroke: #8E4A35; stroke-width: 1.1; opacity: 0.26; }
+
+/* Filete dorado interior, como el de una tarjeta impresa */
+.acceso-marca-panel .marca-filete {
+  position: absolute;
+  inset: 16px;
+  display: block;
+  overflow: hidden;
+  border: 1px solid rgba(210, 158, 47, 0.3);
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 0;
+}
 /* Pétalos del logo, muy tenues, como marca de agua */
 .acceso-marca-panel::before,
 .acceso-marca-panel::after {
@@ -118,34 +153,60 @@
   max-width: 360px;
 }
 .marca-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 11px; }
+.marca-lista { gap: 9px; }
 .marca-lista li {
-  display: flex; align-items: center; gap: 11px;
+  display: flex; align-items: center; gap: 12px;
   font-size: 12.5px;
-  color: #704637;
+  color: #6B4132;
 }
-.marca-lista .ico { width: 17px; height: 17px; flex: none; color: var(--ac-terracota); opacity: 0.85; }
+.marca-lista .chip {
+  display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; flex: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(210, 158, 47, 0.42);
+  box-shadow: 0 2px 8px rgba(124, 70, 50, 0.08);
+}
+.marca-lista .ico { width: 15px; height: 15px; color: var(--ac-terracota); }
 .marca-pie {
-  font-size: 10px;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
+  font-size: 9.5px;
   letter-spacing: 1.4px;
   text-transform: uppercase;
-  color: rgba(112, 70, 55, 0.62);
+  color: rgba(112, 70, 55, 0.6);
   margin: 0;
 }
+.marca-pie i { width: 3px; height: 3px; border-radius: 50%; background: rgba(210, 158, 47, 0.75); }
 
 /* ---------------- Panel del formulario (derecha) ---------------- */
 .acceso-panel-form {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 32px;
+  padding: 40px 36px;
   background:
-    radial-gradient(80% 60% at 100% 0%, #FFF8F4 0%, rgba(255, 248, 244, 0) 70%),
-    #FFFFFF;
+    radial-gradient(70% 50% at 100% 0%, #FFF4EC 0%, rgba(255, 244, 236, 0) 72%),
+    radial-gradient(60% 50% at 0% 100%, #FFF7F2 0%, rgba(255, 247, 242, 0) 70%),
+    #FFFCFA;
 }
 .acceso-tarjeta {
+  position: relative;
   width: 100%;
-  max-width: 372px;
+  max-width: 400px;
+  padding: 38px 36px 30px;
+  background: #FFFFFF;
+  border: 1px solid #F3E6DE;
+  border-radius: 20px;
+  box-shadow: 0 1px 2px rgba(58, 46, 42, 0.04), 0 20px 48px -18px rgba(124, 70, 50, 0.22);
   animation: acceso-entra 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+/* Canto dorado superior, del ancho justo */
+.acceso-tarjeta::before {
+  content: "";
+  position: absolute; left: 36px; right: 36px; top: -1px; height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, rgba(210, 158, 47, 0), #D29E2F 50%, rgba(210, 158, 47, 0));
 }
 @keyframes acceso-entra { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
 
@@ -167,7 +228,9 @@
   font-size: 12.5px;
   line-height: 1.6;
   color: var(--ac-tenue);
-  margin: 0 0 26px;
+  margin: 0 0 22px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #F7EDE7;
 }
 
 /* ---------------- Campos ---------------- */
@@ -346,10 +409,13 @@
     border-bottom: 1px solid rgba(210, 158, 47, 0.3);
   }
   .acceso-marca-panel::before, .acceso-marca-panel::after { display: none; }
+  .arcada-deco, .marca-filete { display: none; }
   .marca-centro, .marca-pie { display: none; }
   .acceso-logo { width: 42px; height: 42px; }
   .acceso-marca { font-size: 19px; letter-spacing: 6px; text-indent: 6px; }
-  .acceso-panel-form { padding: 34px 22px 44px; align-items: center; }
+  .acceso-panel-form { padding: 28px 18px 40px; align-items: center; }
+  .acceso-tarjeta { padding: 30px 24px 24px; max-width: 420px; }
+  .acceso-tarjeta::before { left: 24px; right: 24px; }
   .acceso-titulo { font-size: 27px; }
 }
 @media (max-width: 420px) {

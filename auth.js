@@ -169,6 +169,9 @@
     if (sesion && Date.now() - ultimaActividad > MINUTOS_INACTIVIDAD * 60e3) cerrarSesion(true);
   }, 30e3);
 
+  // Arcada dental en dibujo de línea, como marca de agua del panel
+  const ARCADA = "<svg class=\"arcada-deco\" viewBox=\"110 63 299 223\" fill=\"none\" aria-hidden=\"true\"><path class=\"encia\" d=\"M118.2 252.9 C119.2 245.0 120.8 220.6 124.2 205.6 C127.6 190.6 133.3 175.6 138.8 162.8 C144.3 149.9 150.8 138.5 157.4 128.7 C164.0 118.9 171.4 111.7 178.5 104.1 C185.5 96.5 192.2 88.0 199.7 83.2 C207.2 78.4 215.6 77.8 223.5 75.3 C231.5 72.7 239.4 69.0 247.6 67.7 C255.7 66.4 264.3 66.4 272.4 67.7 C280.6 69.0 288.5 72.7 296.5 75.3 C304.4 77.8 312.8 78.4 320.3 83.2 C327.8 88.0 334.5 96.5 341.5 104.1 C348.6 111.7 356.0 118.9 362.6 128.7 C369.2 138.5 375.7 149.9 381.2 162.8 C386.7 175.6 392.4 190.6 395.8 205.6 C399.2 220.6 400.8 245.0 401.8 252.9\"/><g class=\"piezas\"><rect x=\"-14.0\" y=\"-14.0\" width=\"28\" height=\"28\" rx=\"10\" transform=\"translate(142.2 254.2) rotate(-86.7)\"/><rect x=\"-14.0\" y=\"-14.5\" width=\"28\" height=\"29\" rx=\"10\" transform=\"translate(147.6 213.1) rotate(-72.3)\"/><rect x=\"-13.5\" y=\"-14.5\" width=\"27\" height=\"29\" rx=\"10\" transform=\"translate(159.6 175.6) rotate(-58.3)\"/><rect x=\"-11.0\" y=\"-15.5\" width=\"22\" height=\"31\" rx=\"10\" transform=\"translate(175.6 146.5) rotate(-45.6)\"/><rect x=\"-10.5\" y=\"-16.0\" width=\"21\" height=\"32\" rx=\"10\" transform=\"translate(193.2 125.5) rotate(-34.5)\"/><rect x=\"-9.5\" y=\"-20.0\" width=\"19\" height=\"40\" rx=\"8\" transform=\"translate(211.9 110.6) rotate(-24.0)\"/><rect x=\"-8.5\" y=\"-17.0\" width=\"17\" height=\"34\" rx=\"8\" transform=\"translate(230.3 101.4) rotate(-14.6)\"/><rect x=\"-10.0\" y=\"-19.0\" width=\"20\" height=\"38\" rx=\"8\" transform=\"translate(250.0 96.6) rotate(-4.9)\"/><rect x=\"-10.0\" y=\"-19.0\" width=\"20\" height=\"38\" rx=\"8\" transform=\"translate(270.0 96.6) rotate(4.9)\"/><rect x=\"-8.5\" y=\"-17.0\" width=\"17\" height=\"34\" rx=\"8\" transform=\"translate(289.7 101.4) rotate(14.6)\"/><rect x=\"-9.5\" y=\"-20.0\" width=\"19\" height=\"40\" rx=\"8\" transform=\"translate(308.1 110.6) rotate(24.0)\"/><rect x=\"-10.5\" y=\"-16.0\" width=\"21\" height=\"32\" rx=\"10\" transform=\"translate(326.8 125.5) rotate(34.5)\"/><rect x=\"-11.0\" y=\"-15.5\" width=\"22\" height=\"31\" rx=\"10\" transform=\"translate(344.4 146.5) rotate(45.6)\"/><rect x=\"-13.5\" y=\"-14.5\" width=\"27\" height=\"29\" rx=\"10\" transform=\"translate(360.4 175.6) rotate(58.3)\"/><rect x=\"-14.0\" y=\"-14.5\" width=\"28\" height=\"29\" rx=\"10\" transform=\"translate(372.4 213.1) rotate(72.3)\"/><rect x=\"-14.0\" y=\"-14.0\" width=\"28\" height=\"28\" rx=\"10\" transform=\"translate(377.8 254.2) rotate(86.7)\"/></g><g class=\"surcos\"><path d=\"M-9.0 0 H9.0 M0 -9.0 V9.0\" transform=\"translate(142.2 254.2) rotate(-86.7)\"/><path d=\"M-9.0 0 H9.0 M0 -9.5 V9.5\" transform=\"translate(147.6 213.1) rotate(-72.3)\"/><path d=\"M-8.5 0 H8.5 M0 -9.5 V9.5\" transform=\"translate(159.6 175.6) rotate(-58.3)\"/><path d=\"M-6.0 0 H6.0 M0 -10.5 V10.5\" transform=\"translate(175.6 146.5) rotate(-45.6)\"/><path d=\"M-5.5 0 H5.5 M0 -11.0 V11.0\" transform=\"translate(193.2 125.5) rotate(-34.5)\"/><path d=\"M-5.5 1 H5.5\" transform=\"translate(211.9 110.6) rotate(-24.0)\"/><path d=\"M-4.5 1 H4.5\" transform=\"translate(230.3 101.4) rotate(-14.6)\"/><path d=\"M-6.0 1 H6.0\" transform=\"translate(250.0 96.6) rotate(-4.9)\"/><path d=\"M-6.0 1 H6.0\" transform=\"translate(270.0 96.6) rotate(4.9)\"/><path d=\"M-4.5 1 H4.5\" transform=\"translate(289.7 101.4) rotate(14.6)\"/><path d=\"M-5.5 1 H5.5\" transform=\"translate(308.1 110.6) rotate(24.0)\"/><path d=\"M-5.5 0 H5.5 M0 -11.0 V11.0\" transform=\"translate(326.8 125.5) rotate(34.5)\"/><path d=\"M-6.0 0 H6.0 M0 -10.5 V10.5\" transform=\"translate(344.4 146.5) rotate(45.6)\"/><path d=\"M-8.5 0 H8.5 M0 -9.5 V9.5\" transform=\"translate(360.4 175.6) rotate(58.3)\"/><path d=\"M-9.0 0 H9.0 M0 -9.5 V9.5\" transform=\"translate(372.4 213.1) rotate(72.3)\"/><path d=\"M-9.0 0 H9.0 M0 -9.0 V9.0\" transform=\"translate(377.8 254.2) rotate(86.7)\"/></g></svg>";
+
   // ---------------------------------------------------------------- pantallas
   const svgIco = (d, extra) => '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"' + (extra || '') + '>' + d + '</svg>';
   const ICO = {
@@ -191,6 +194,7 @@
       <div class="acceso-escena">
 
         <aside class="acceso-marca-panel">
+          <span class="marca-filete">${ARCADA}</span>
           <div class="marca-cabecera">
             <img class="acceso-logo" src="./logo-fassiara.png" alt="Fassiara">
             <div>
@@ -204,13 +208,13 @@
             <h2 class="marca-lema">Odontograma<br>tridimensional</h2>
             <p class="marca-texto">Ficha dental, presupuesto y documentos del paciente en una sola pantalla, al lado del sillón.</p>
             <ul class="marca-lista">
-              <li>${ICO.diente}<span>Las 32 piezas con su estado clínico</span></li>
-              <li>${ICO.archivo}<span>Presupuesto y consentimiento al instante</span></li>
-              <li>${ICO.rayo}<span>Funciona también sin internet</span></li>
+              <li><span class="chip">${ICO.diente}</span><span>Las 32 piezas con su estado clínico</span></li>
+              <li><span class="chip">${ICO.archivo}</span><span>Presupuesto y consentimiento al instante</span></li>
+              <li><span class="chip">${ICO.rayo}</span><span>Funciona también sin internet</span></li>
             </ul>
           </div>
 
-          <p class="marca-pie">Uso exclusivo del personal de la clínica</p>
+          <p class="marca-pie"><span>Uso exclusivo del personal</span><i></i><span>Historias cifradas</span><i></i><span>v1.0</span></p>
         </aside>
 
         <main class="acceso-panel-form">
