@@ -208,6 +208,36 @@ El visor se abre tras una pantalla de acceso con la identidad de la clínica (`a
 
 ⚠️ **Alcance real:** esto es control de uso del consultorio, no seguridad de servidor. Al ser un sitio estático, los usuarios viven en el navegador de cada equipo y alguien con conocimientos técnicos podría sortearlo. Para protección real hay que servir el sitio detrás de una autenticación de verdad (Cloudflare Access, Netlify o un backend propio).
 
+## Gestión de pacientes y expediente clínico
+
+Botón **Pacientes** en la barra superior. Archivos propios: `datos.js` (datos), `pacientes.js` (pantallas e integración) y `pacientes.css` (diseño). El visor 3D no se reescribió: se usa su propia ficha (`estadoFicha` / `aplicarFicha`) y se envuelven, sin cambiarlas, `guardarBorrador`, `estadoDePieza` y `mostrarFichaPieza`.
+
+**Qué incluye**
+- Listado con búsqueda por nombre, apellidos, DNI y teléfono; filtros por estado y por citas de hoy o de los próximos 7 días.
+- Alta y edición con validaciones (DNI de 8 dígitos, documento único, correo, fechas), foto, estado (activo, en tratamiento, inactivo) y próxima cita.
+- Expediente con seis pestañas: Resumen, Odontograma 3D, Plan de tratamiento, Historial de consultas, Diagnósticos, Fotos y documentos.
+- Cada paciente tiene su propio odontograma. Al abrirlo, lo que se marca se guarda en su expediente y no en la ficha general del equipo; deshacer no puede saltar al odontograma de otro paciente.
+- Plan de tratamiento con varios procedimientos por pieza. Lo marcado en el odontograma aparece como propuesta y el doctor decide si lo agrega. El color de la pieza sigue al plan: rojo si algo está pendiente, verde si todo está realizado, anillo ámbar si hay algo en proceso.
+- "Realizado" siempre pide confirmación, y corregirlo también. Cada cambio de estado queda en la historia con usuario y hora; completar un procedimiento no toca los demás de la pieza.
+- Avance = realizados ÷ (total − cancelados), actualizado solo.
+- Consultas en línea de tiempo. Al cerrarlas se guarda una copia del odontograma y ya no se editan: las correcciones son adendas.
+- Auditoría de cada cambio (solo la ve el administrador).
+
+**Permisos**
+| | Administrador | Doctor | Recepción |
+|---|---|---|---|
+| Lista, alta y datos personales | ✅ | ✅ | ✅ |
+| Expediente clínico, odontograma, diagnósticos, consultas, documentos | ✅ | ✅ | ❌ |
+| Plan de tratamiento | ✅ | ✅ | solo pieza, procedimiento, costo y estado, para cobrar |
+| Auditoría, copia de seguridad y restauración | ✅ | ❌ | ❌ |
+
+**Dónde se guarda**
+En la base local del navegador (IndexedDB), con las mismas tablas y campos del diseño aprobado para Supabase: `pacientes`, `expedientes`, `odontogramas`, `odontograma_versiones`, `diagnosticos`, `tratamientos`, `tratamiento_eventos`, `consultas`, `consulta_procedimientos`, `consulta_adendas`, `documentos`, `auditoria`. Cuando se conecte la nube solo cambia `datos.js`.
+
+**Importante mientras no esté la nube:** los pacientes viven en el equipo donde se registran. El administrador debe hacer la **Copia de seguridad de la base** (pie de la lista de pacientes) con frecuencia y guardarla fuera del equipo; **Restaurar una copia** la fusiona sin sobrescribir lo más reciente. Borrar los datos del navegador borra los pacientes.
+
+**Migrar lo que ya existe:** "Importar ficha como paciente" convierte un archivo de ficha `.json` en paciente, y "Convertir la ficha actual del equipo en paciente" hace lo mismo con la ficha guardada en el equipo. La misma ficha no se importa dos veces.
+
 ## Deploy
 
 ### Opción A — GitHub Pages (recomendado, workflow ya incluido)

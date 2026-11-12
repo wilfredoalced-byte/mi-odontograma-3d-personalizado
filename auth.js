@@ -27,17 +27,17 @@
     administrador: {
       nombre: 'Administrador',
       descripcion: 'Gestiona usuarios, precios y el registro de ingresos, además de todo lo clínico.',
-      permisos: ['clinico', 'documentos', 'precios', 'usuarios', 'registro', 'ficha', 'paciente'],
+      permisos: ['clinico', 'documentos', 'precios', 'usuarios', 'registro', 'ficha', 'paciente', 'pacientes', 'expediente', 'tratamientos', 'consultas', 'auditoria'],
     },
     doctor: {
       nombre: 'Doctor',
       descripcion: 'Trabajo clínico completo: marcar, anatomía, presupuesto, consentimiento y documentos.',
-      permisos: ['clinico', 'documentos', 'ficha', 'paciente'],
+      permisos: ['clinico', 'documentos', 'ficha', 'paciente', 'pacientes', 'expediente', 'tratamientos', 'consultas'],
     },
     recepcion: {
       nombre: 'Recepción',
       descripcion: 'Consulta el caso, atiende al paciente y entrega el presupuesto. No modifica lo clínico.',
-      permisos: ['ficha', 'paciente', 'presupuesto'],
+      permisos: ['ficha', 'paciente', 'presupuesto', 'pacientes'],
     },
   };
 
@@ -111,6 +111,10 @@
   }
   window.puede = puede;
   window.sesionActual = () => (sesion ? { ...sesion } : null);
+  // Personal de la clínica, sin claves ni datos de acceso: para elegir el odontólogo responsable
+  window.usuariosClinica = () => (sesion ? leerDatos().usuarios
+    .filter(u => u.activo !== false)
+    .map(u => ({ id: u.id, nombre: u.nombre, rol: u.rol, cop: u.cop || '', especialidad: u.especialidad || '' })) : []);
 
   function aplicarPermisos() {
     const b = document.body;

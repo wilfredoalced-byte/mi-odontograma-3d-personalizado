@@ -6,6 +6,7 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%A6%B7</text></svg>">
   <title>Odontograma 3D — Fassiara Clínica Odontológica y Estética</title>
   <link rel="stylesheet" href="./auth.css">
+  <link rel="stylesheet" href="./pacientes.css">
   <link rel="manifest" href="./manifest.webmanifest">
   <meta name="theme-color" content="#FABAA1">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -884,6 +885,7 @@
     <div id="clinic-brand-label">FASSIARA</div>
 
     <div class="top-group">
+      <button class="touch-btn" id="btn-pacientes" onclick="abrirPacientes()" title="Gestión de pacientes"><svg class="pc-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.4"/><path d="M2.8 20a6.2 6.2 0 0 1 12.4 0"/><path d="M16 4.6a3.4 3.4 0 0 1 0 6.6M18.2 14.2a6.2 6.2 0 0 1 3 5.8"/></svg><span class="etq">Pacientes</span></button>
       <button class="touch-btn btn-alert" onclick="openAnamnesisModal()">⚠️ Alertas</button>
       <button class="touch-btn btn-budget-pill" id="btn-top-budget" onclick="openBudgetModal()">💰 S/ 0</button>
       <button class="touch-btn" id="btn-theme-toggle" onclick="toggleAppTheme()">☀️</button>
@@ -5496,5 +5498,8 @@
     loadArchData();
     animate();
   </script>
+  <!-- Gestión de pacientes y expediente clínico: archivos aparte, el visor no se modifica -->
+  <script src="./datos.js"></script>
+  <script src="./pacientes.js"></script>
 </body>
 </html>
