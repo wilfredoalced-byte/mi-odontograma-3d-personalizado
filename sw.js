@@ -3,7 +3,7 @@
 // Estrategia: la página y las librerías se sirven de caché y se refrescan en segundo plano;
 // los modelos 3D (grandes y que no cambian) se guardan la primera vez que se usan.
 
-const VERSION = 'fassiara-odontograma-v7';
+const VERSION = 'fassiara-odontograma-v8';
 const ESENCIALES = [
   './',
   './index.html',

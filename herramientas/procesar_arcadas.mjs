@@ -4,7 +4,7 @@
 //  3. Hornea colores por vértice: esmalte, dentina cervical, fisuras, encía marginal.
 //  4. Separa la malla en dos primitivas con materiales "esmalte" y "encia".
 //  5. Mide cada pieza (ancho, nivel cervical) y escribe un JSON para generar raíces en el visor.
-// Uso: node process.mjs <entrada.glb> <posiciones.json> <salida.glb> <salida_raices.json>
+// Uso: node procesar_arcadas.mjs <entrada.glb> <posiciones.json> <salida.glb> <salida_raices.json>
 import fs from 'fs';
 import { Document, NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS, KHRDracoMeshCompression } from '@gltf-transform/extensions';
@@ -15,7 +15,7 @@ import sharp from 'sharp';
 
 const [inFile, posFile, outFile, rootsFile, proxyFile, modo] = process.argv.slice(2);
 const LITE = modo === 'lite';                       // versión ligera para móviles
-const RATIO_DIENTES = LITE ? 0.18 : 0.62, RATIO_ENCIA = LITE ? 0.07 : 0.22;
+const RATIO_DIENTES = +(process.env.RD || (LITE ? 0.18 : 0.62)), RATIO_ENCIA = +(process.env.RE || (LITE ? 0.07 : 0.22));
 await MeshoptSimplifier.ready;
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({
   'draco3d.decoder': await draco3d.createDecoderModule(),
@@ -62,60 +62,117 @@ for (let t = 0; t < nT; t++) {
 }
 log('adyacencia', nV, 'vértices', nT, 'triángulos');
 
-// ---------- clasificación por textura ----------
+// ---------- clasificación diente / encía sobre una copia soldada ----------
 const tex = oldMat.getBaseColorTexture();
 const { data: px, info } = await sharp(Buffer.from(tex.getImage())).raw().toBuffer({ resolveWithObject: true });
-let gum = new Uint8Array(nV);
-const lum = new Float32Array(nV);
+const texRG = new Float32Array(nV), lum = new Float32Array(nV);
 for (let i = 0; i < nV; i++) {
   const x = Math.min(info.width - 1, Math.max(0, Math.floor(UV[2 * i] * info.width)));
   const y = Math.min(info.height - 1, Math.max(0, Math.floor(UV[2 * i + 1] * info.height)));
   const o = (y * info.width + x) * info.channels;
-  const r = px[o], g = px[o + 1], b = px[o + 2];
-  gum[i] = (r - g > 45 || (r - g > 20 && Math.abs(g - b) < 12)) ? 1 : 0;
-  lum[i] = (r + g + b) / 765;
+  texRG[i] = px[o] - px[o + 1];
+  lum[i] = (px[o] + px[o + 1] + px[o + 2]) / 765;
 }
-for (let it = 0; it < 3; it++) { // suavizado por mayoría
-  const next = new Uint8Array(nV);
-  for (let i = 0; i < nV; i++) {
-    let s = gum[i] * 2, c = 2;
-    for (let k = off[i]; k < off[i + 1]; k++) { s += gum[adj[k]]; c++; }
-    next[i] = s * 2 > c ? 1 : 0;
-  }
-  gum = next;
+// 1 · Soldar (solo para decidir)
+const qS = 1e5, mapaS = new Map(), wId = new Int32Array(nV);
+let nSold = 0; const wPrim = [];
+for (let i = 0; i < nV; i++) {
+  const k = Math.round(P[3 * i] * qS) + ',' + Math.round(P[3 * i + 1] * qS) + ',' + Math.round(P[3 * i + 2] * qS);
+  let u = mapaS.get(k);
+  if (u === undefined) { u = nSold++; mapaS.set(k, u); wPrim.push(i); }
+  wId[i] = u;
 }
-// Islas pequeñas (manchas de textura) se reasignan a la región que las rodea
-for (const [label, minSize] of [[1, 4000], [0, 1500]]) {
-  const seen = new Uint8Array(nV);
-  for (let s = 0; s < nV; s++) {
-    if (seen[s] || gum[s] !== label) continue;
-    const comp = [s]; seen[s] = 1;
-    for (let q = 0; q < comp.length; q++) {
-      const i = comp[q];
-      for (let k = off[i]; k < off[i + 1]; k++) { const j = adj[k]; if (!seen[j] && gum[j] === label) { seen[j] = 1; comp.push(j); } }
+const wCnt = new Float32Array(nSold), wRG = new Float32Array(nSold), wN = new Float32Array(nSold * 3);
+for (let i = 0; i < nV; i++) { const u = wId[i]; wCnt[u]++; wRG[u] += texRG[i]; wN[3*u] += N[3*i]; wN[3*u+1] += N[3*i+1]; wN[3*u+2] += N[3*i+2]; }
+for (let u = 0; u < nSold; u++) { wRG[u] /= wCnt[u]; const l = Math.hypot(wN[3*u], wN[3*u+1], wN[3*u+2]) || 1; wN[3*u] /= l; wN[3*u+1] /= l; wN[3*u+2] /= l; }
+const wP = new Float32Array(nSold * 3), wPw = new Float32Array(nSold * 3);
+for (let u = 0; u < nSold; u++) { const i = wPrim[u]; for (let a = 0; a < 3; a++) { wP[3*u+a] = P[3*i+a]; wPw[3*u+a] = Pw[3*i+a]; } }
+// Vecindad soldada
+const wDeg = new Uint32Array(nSold);
+for (let t = 0; t < nT; t++) { const a = wId[I[3*t]], b = wId[I[3*t+1]], c = wId[I[3*t+2]]; if (a === b || b === c || a === c) continue; wDeg[a] += 2; wDeg[b] += 2; wDeg[c] += 2; }
+const wOff = new Uint32Array(nSold + 1); for (let u = 0; u < nSold; u++) wOff[u + 1] = wOff[u] + wDeg[u];
+const wAdj = new Uint32Array(wOff[nSold]); const wFill = wOff.slice(0, nSold);
+for (let t = 0; t < nT; t++) {
+  const a = wId[I[3*t]], b = wId[I[3*t+1]], c = wId[I[3*t+2]]; if (a === b || b === c || a === c) continue;
+  wAdj[wFill[a]++] = b; wAdj[wFill[a]++] = c; wAdj[wFill[b]++] = a; wAdj[wFill[b]++] = c; wAdj[wFill[c]++] = a; wAdj[wFill[c]++] = b;
+}
+log('copia soldada:', nV, '→', nSold, 'vértices');
+// 2 · Curvatura (cóncavo = positivo) en la copia soldada; la costura se rellena
+let cv = new Float32Array(nSold);
+for (let u = 0; u < nSold; u++) {
+  let sx = 0, sy = 0, sz = 0, el = 0; const c = wOff[u + 1] - wOff[u]; if (!c) continue;
+  for (let k = wOff[u]; k < wOff[u + 1]; k++) { const w = wAdj[k]; const dx = wP[3*w] - wP[3*u], dy = wP[3*w+1] - wP[3*u+1], dz = wP[3*w+2] - wP[3*u+2]; sx += dx; sy += dy; sz += dz; el += Math.hypot(dx, dy, dz); }
+  el /= c; cv[u] = (wN[3*u] * sx + wN[3*u+1] * sy + wN[3*u+2] * sz) / c / (el || 1);
+}
+const wCost = new Uint8Array(nSold);
+for (let u = 0; u < nSold; u++) if (wCnt[u] > 1) { wCost[u] = 1; for (let k = wOff[u]; k < wOff[u + 1]; k++) wCost[wAdj[k]] = 1; }
+for (let it = 0; it < 6; it++) {
+  const g = cv.slice();
+  for (let u = 0; u < nSold; u++) { if (!wCost[u]) continue; let a = 0, c = 0; for (let k = wOff[u]; k < wOff[u + 1]; k++) { const w = wAdj[k]; if (!wCost[w] || it > 2) { a += cv[w]; c++; } } if (c) g[u] = a / c; }
+  cv = g;
+}
+for (let it = 0; it < 4; it++) {
+  const nx = new Float32Array(nSold);
+  for (let u = 0; u < nSold; u++) { let a = cv[u], c = 1; for (let k = wOff[u]; k < wOff[u + 1]; k++) { a += cv[wAdj[k]]; c++; } nx[u] = a / c; }
+  cv = nx;
+}
+const mu = []; for (let u = 0; u < nSold; u += 11) mu.push(cv[u]); mu.sort((a, b) => a - b);
+const escala = Math.max(1e-6, mu[Math.floor(0.985 * (mu.length - 1))]);
+const elev = new Float32Array(nSold);
+for (let u = 0; u < nSold; u++) elev[u] = Math.max(0, cv[u]) / escala;
+// 3 · Semillas: dientes por posición; encía solo lejos de los dientes
+const tp = fdis.map(f => [pos[f].x, pos[f].y, pos[f].z]);
+const radio = tp.map((p, a) => { let m = 1e9; tp.forEach((q, b) => { if (a !== b) m = Math.min(m, Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2])); }); return Math.min(+(process.env.RMAX || 0.12), Math.max(0.04, +(process.env.RSEM || 0.5) * m)); });
+const semD = [], semG = [];
+for (let u = 0; u < nSold; u++) {
+  let dent = false, dmin = 1e9;
+  for (let t = 0; t < tp.length; t++) { const d = Math.hypot(wPw[3*u] - tp[t][0], wPw[3*u+1] - tp[t][1], wPw[3*u+2] - tp[t][2]); if (d < radio[t]) dent = true; if (d < dmin) dmin = d; }
+  if (dent) semD.push(u); else if (dmin > 0.14 && wRG[u] > 55) semG.push(u);
+}
+log('semillas: dientes', semD.length, '· encía', semG.length);
+// 4 · Dos Dijkstra: gana quien llega más barato; cruzar un pliegue cuesta caro
+const ALFA = +(process.env.ALFA || 30), GAMMA = +(process.env.GAMMA || 2);
+const texW = new Float32Array(nSold);
+for (let u = 0; u < nSold; u++) texW[u] = Math.min(1, Math.max(0, (wRG[u] - 18) / 40));
+const dijkstra = (semillas, esDiente) => {
+  const dist = new Float64Array(nSold).fill(Infinity);
+  let cap = 1 << 22, hK = new Float64Array(cap), hV = new Int32Array(cap), hN = 0;
+  const push = (v, k) => { if (hN >= cap) { cap *= 2; const k2 = new Float64Array(cap); k2.set(hK); hK = k2; const v2 = new Int32Array(cap); v2.set(hV); hV = v2; } let i = hN++; while (i > 0) { const p = (i - 1) >> 1; if (hK[p] <= k) break; hK[i] = hK[p]; hV[i] = hV[p]; i = p; } hK[i] = k; hV[i] = v; };
+  const pop = () => { const v = hV[0], k0 = hK[0], k = hK[--hN], w = hV[hN]; let i = 0; while (true) { let c = 2 * i + 1; if (c >= hN) break; if (c + 1 < hN && hK[c + 1] < hK[c]) c++; if (hK[c] >= k) break; hK[i] = hK[c]; hV[i] = hV[c]; i = c; } hK[i] = k; hV[i] = w; return [v, k0]; };
+  for (const v of semillas) { dist[v] = 0; push(v, 0); }
+  while (hN) {
+    const [u, d] = pop(); if (d > dist[u]) continue;
+    for (let k = wOff[u]; k < wOff[u + 1]; k++) {
+      const w = wAdj[k];
+      const len = Math.hypot(wP[3*w] - wP[3*u], wP[3*w+1] - wP[3*u+1], wP[3*w+2] - wP[3*u+2]);
+      const nd = d + len * (1 + ALFA * elev[w] + GAMMA * (esDiente ? texW[w] : 1 - texW[w]));
+      if (nd < dist[w]) { dist[w] = nd; push(w, nd); }
     }
-    if (comp.length < minSize) for (const i of comp) gum[i] = 1 - label;
   }
+  return dist;
+};
+const cD = dijkstra(semD, true), cG = dijkstra(semG, false);
+let wGum = new Uint8Array(nSold);
+for (let u = 0; u < nSold; u++) wGum[u] = cG[u] < cD[u] ? 1 : 0;
+// 5 · Limpieza en la copia soldada
+for (let it = 0; it < 2; it++) {
+  const nx = new Uint8Array(nSold);
+  for (let u = 0; u < nSold; u++) { let a = wGum[u] * 2, c = 2; for (let k = wOff[u]; k < wOff[u + 1]; k++) { a += wGum[wAdj[k]]; c++; } nx[u] = a * 2 > c ? 1 : 0; }
+  wGum = nx;
 }
-// Regiones clasificadas como diente que no están cerca de ninguna pieza (p. ej. la base del modelo) son encía
-{
-  const seen = new Uint8Array(nV); let moved = 0;
-  for (let s0 = 0; s0 < nV; s0++) {
-    if (seen[s0] || gum[s0]) continue;
+for (const [label, minSize] of [[1, 3000], [0, 1200]]) {
+  const seen = new Uint8Array(nSold);
+  for (let s0 = 0; s0 < nSold; s0++) {
+    if (seen[s0] || wGum[s0] !== label) continue;
     const comp = [s0]; seen[s0] = 1;
-    for (let q = 0; q < comp.length; q++) {
-      const i = comp[q];
-      for (let k = off[i]; k < off[i + 1]; k++) { const j = adj[k]; if (!seen[j] && !gum[j]) { seen[j] = 1; comp.push(j); } }
-    }
-    let near = false;
-    for (let q = 0; q < comp.length && !near; q += 3) {
-      const i = comp[q];
-      for (const f of fdis) { if (Math.hypot(Pw[3 * i] - pos[f].x, Pw[3 * i + 1] - pos[f].y, Pw[3 * i + 2] - pos[f].z) < 0.15) { near = true; break; } }
-    }
-    if (!near) { for (const i of comp) gum[i] = 1; moved += comp.length; }
+    for (let q = 0; q < comp.length; q++) { const u = comp[q]; for (let k = wOff[u]; k < wOff[u + 1]; k++) { const w = wAdj[k]; if (!seen[w] && wGum[w] === label) { seen[w] = 1; comp.push(w); } } }
+    if (comp.length < minSize) for (const u of comp) wGum[u] = 1 - label;
   }
-  log("regiones sin pieza cercana pasadas a encía:", moved);
 }
+// 6 · De vuelta a la malla original (todas las copias de un vértice, misma clase)
+let gum = new Uint8Array(nV);
+for (let i = 0; i < nV; i++) gum[i] = wGum[wId[i]];
+{ let ac = 0; for (let i = 0; i < nV; i++) if ((texRG[i] > 32 ? 1 : 0) === gum[i]) ac++; log('coincidencia con la textura:', (100 * ac / nV).toFixed(1) + '%'); }
 log('encía', gum.reduce((a, b) => a + b, 0), 'vértices');
 
 const nrm = v => { const l = Math.hypot(...v) || 1; return v.map(x => x / l); };
@@ -206,9 +263,9 @@ log('distancias al margen listas');
 
 // ---------- colores por vértice (lineales) ----------
 const lin = h => [0, 2, 4].map(s => { const c = parseInt(h.slice(1 + s, 3 + s), 16) / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
-const ESMALTE = lin('#F5F0E6'), DENTINA = lin('#F2E2C4'), FISURA = lin('#A5875F'), FOSA = lin('#DCC7A3'), BORDE = lin('#F0E8D8');
+const ESMALTE = lin('#F1E9DC'), DENTINA = lin('#EFDDBE'), FISURA = lin('#9C7D57'), FOSA = lin('#D6C09A'), BORDE = lin('#E8E5DE');
 const RAIZ = lin('#E8D4B9');
-const ENCIA = lin('#F8C8C8'), MARGEN = lin('#EFB0B8'), SURCO_ENCIA = lin('#D9959C');
+const ENCIA = lin('#EDB2AF'), MARGEN = lin('#E49CA0'), SURCO_ENCIA = lin('#CD868C');
 const ss = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
 const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 const COL = new Float32Array(nV * 3);
@@ -218,10 +275,9 @@ for (let i = 0; i < nV; i++) {
   if (!gum[i]) {
     c = ESMALTE;
     c = mix(c, DENTINA, 0.5 * (1 - ss(0.0, 0.11, dist[i])));   // tercio cervical: el esmalte es más delgado y la dentina se transparenta
-    c = mix(c, FOSA, 0.55 * ss(kB.g0, kB.g1, broad[i]));        // fosas y troneras (sombra amplia)
+    c = mix(c, FOSA, 0.65 * ss(kB.g0, kB.g1, broad[i]));        // fosas y troneras (sombra amplia)
     c = mix(c, BORDE, 0.55 * ss(kB.c0, kB.c1, broad[i]) + 0.3 * ss(kT.c0, kT.c1, curv[i])); // cúspides y bordes: esmalte más translúcido
-    c = mix(c, FISURA, 0.7 * ss(kT.g0, kT.g1, curv[i]));       // surcos y fisuras
-    c = mix(c, RAIZ, 0.85 * ss(0.002, 0.075, srcH[i] - hOf(i)));  // lo que queda por debajo del margen gingival ya es raíz
+    c = mix(c, FISURA, 0.82 * ss(kT.g0, kT.g1, curv[i]));      // surcos y fisuras
   } else {
     c = ENCIA;
     c = mix(c, MARGEN, 0.45 * (1 - ss(0.0, 0.055, dist[i])));   // encía marginal y papilas
@@ -231,7 +287,6 @@ for (let i = 0; i < nV; i++) {
   }
   COL[3 * i] = c[0]; COL[3 * i + 1] = c[1]; COL[3 * i + 2] = c[2];
   if (gum[i]) ZONA[i] = dist[i] < 0.035 ? 1 : 0;
-  else if (srcH[i] - hOf(i) > 0.012) ZONA[i] = 6;
   else if (dist[i] < 0.045) ZONA[i] = 5;
   else if (ss(kT.g0, kT.g1, curv[i]) > 0.5) ZONA[i] = 3;
   else if (ss(kB.c0, kB.c1, broad[i]) > 0.5) ZONA[i] = 2;
@@ -332,7 +387,7 @@ log('raíces medidas', Object.keys(roots.piezas).length, 'piezas');
 
 const draco = doc.createExtension(KHRDracoMeshCompression).setRequired(true)
   .setEncoderOptions({ method: KHRDracoMeshCompression.EncoderMethod.EDGEBREAKER, encodeSpeed: 3, decodeSpeed: 5,
-    quantizationVolume: "scene", quantizationBits: { POSITION: 12, NORMAL: 8, COLOR: 8, TEX_COORD: 10, GENERIC: 8 } });
+    quantizationVolume: "scene", quantizationBits: { POSITION: +(process.env.QB || 14), NORMAL: 10, COLOR: 8, TEX_COORD: 10, GENERIC: 8 } });
 
 // ---------- malla-proxy: copia muy ligera solo para el cursor y la selección ----------
 // Evita tener que lanzar rayos contra los 3 millones de triángulos del escaneo.
